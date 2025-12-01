@@ -21,11 +21,12 @@ class BuildLogicTest(
         applyDefaults(
             model,
             this,
-            ":build-logic:test -PskipBuildLogicTests=false",
+            ":build-logic:test",
             extraParameters =
                 listOf(
                     stage.getBuildScanCustomValueParam(),
                     buildScanTagParam("BuildLogitTest"),
+                    "-Dorg.gradle.java.installations.auto-download=false",
                     "-Porg.gradle.java.installations.auto-download=false",
                 ).joinToString(" "),
         )

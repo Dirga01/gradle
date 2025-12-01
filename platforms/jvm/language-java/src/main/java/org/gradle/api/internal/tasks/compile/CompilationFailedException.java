@@ -17,7 +17,7 @@ package org.gradle.api.internal.tasks.compile;
 
 import org.gradle.api.problems.internal.InternalProblem;
 import org.gradle.internal.exceptions.CompilationFailedIndicator;
-import org.gradle.problems.internal.rendering.ProblemRenderer;
+import org.gradle.problems.internal.rendering.ProblemWriter;
 import org.jspecify.annotations.Nullable;
 
 import java.io.StringWriter;
@@ -67,12 +67,12 @@ public class CompilationFailedException extends RuntimeException implements Comp
     }
 
     /*
-     * Build Scans do not consume Problems API reports to render compilation errors yet. To keep the error message in scans consistent with the console, we need to render the problems in the exception message.
+     * A Build Scan does not consume Problems API reports to render compilation errors yet. To keep the error message in scans consistent with the console, we need to render the problems in the exception message.
      */
     private static String exceptionMessage(String prefix, List<InternalProblem> problems, String diagnosticCounts) {
         StringWriter result = new StringWriter();
         result.append(prefix);
-        new ProblemRenderer(result).render(problems);
+        ProblemWriter.simple().write(problems, result);
         result.append(System.lineSeparator());
         result.append(diagnosticCounts);
         return result.toString();

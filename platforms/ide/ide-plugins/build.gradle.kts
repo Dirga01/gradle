@@ -41,13 +41,13 @@ dependencies {
     implementation(projects.fileCollections)
     implementation(projects.jvmServices)
     implementation(projects.languageJava)
-    implementation(projects.logging)
     implementation(projects.modelCore)
     implementation(projects.pluginsGroovy)
     implementation(projects.pluginsJava)
     implementation(projects.pluginsJavaBase)
     implementation(projects.pluginsJvmTestFixtures)
     implementation(projects.pluginsJvmTestSuite)
+    implementation(projects.problemsApi)
     implementation(projects.scala)
     implementation(projects.serviceLookup)
     implementation(projects.testSuitesBase)
@@ -96,7 +96,6 @@ packageCycles {
  */
 testFilesCleanup.reportOnly = true
 
-integTest.usesJavadocCodeSnippets = true
 tasks.isolatedProjectsIntegTest {
     enabled = false
 }

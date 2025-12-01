@@ -7,15 +7,6 @@ description = """This project contains the Build Init plugin, which is automatic
 
 This project should NOT be used as an implementation dependency anywhere (except when building a Gradle distribution)."""
 
-errorprone {
-    disabledChecks.addAll(
-        "DefaultCharset", // 6 occurrences
-        "GetClassOnEnum", // 1 occurrences
-        "ImmutableEnumChecker", // 2 occurrences
-        "ReferenceEquality", // 1 occurrences
-    )
-}
-
 dependencies {
     api(libs.inject)
     api(libs.jspecify)
@@ -46,6 +37,7 @@ dependencies {
     implementation(projects.pluginsJvmTestSuite)
     implementation(projects.serviceLookup)
     implementation(projects.wrapperShared)
+    implementation(projects.resources)
 
     implementation(libs.groovy)
     implementation(libs.groovyTemplates)
@@ -89,14 +81,16 @@ dependencies {
     testFixturesImplementation(projects.pluginsJvmTestSuite)
 
 
-    testImplementation(projects.cli)
     testImplementation(projects.baseServicesGroovy)
+    testImplementation(projects.cli)
+    testImplementation(projects.internalIntegTesting)
     testImplementation(projects.native)
     testImplementation(projects.snapshots)
     testImplementation(projects.processServices)
     testImplementation(projects.wrapperMain)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.platformNative))
+    testImplementation(testFixtures(projects.testingBase))
 
     testRuntimeOnly(libs.maven3Compat)
     testRuntimeOnly(libs.maven3PluginApi)

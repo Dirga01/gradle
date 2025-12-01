@@ -26,6 +26,8 @@ import static org.gradle.api.problems.fixtures.ReportingScript.getProblemReporti
 
 class ProblemsServiceIntegrationTest extends AbstractIntegrationSpec {
 
+    public static final int PROBLEM_LOCATION_LINE = 23
+
     def setup() {
         enableProblemsApiCheck()
     }
@@ -51,7 +53,7 @@ class ProblemsServiceIntegrationTest extends AbstractIntegrationSpec {
             with(oneLocation(StackTraceLocation).fileLocation) {
                 length == -1
                 column == -1
-                line == 13
+                line == PROBLEM_LOCATION_LINE
                 path == buildFile.absolutePath
             }
             with(oneLocation(TaskLocation)) {
@@ -79,7 +81,7 @@ class ProblemsServiceIntegrationTest extends AbstractIntegrationSpec {
 
         executer.expectDocumentedDeprecationWarning(
             "Properties should be assigned using the 'propName = value' syntax. Setting a property via the Gradle-generated 'propName value' or 'propName(value)' syntax in Groovy DSL has been deprecated. " +
-                "This is scheduled to be removed in Gradle 10.0. Use assignment ('description = <value>') instead. " +
+                "This is scheduled to be removed in Gradle 10. Use assignment ('description = <value>') instead. " +
                 "Consult the upgrading guide for further information: https://docs.gradle.org/current/userguide/upgrading_version_8.html#groovy_space_assignment_syntax"
         )
 
@@ -124,7 +126,7 @@ class ProblemsServiceIntegrationTest extends AbstractIntegrationSpec {
                 with(fileLocation as LineInFileLocation) {
                     length == -1
                     column == -1
-                    line == 13
+                    line == PROBLEM_LOCATION_LINE
                     path == buildFile.absolutePath
                 }
                 stackTrace.find { it.className == 'ProblemReportingTask' && it.methodName == 'run' }
@@ -314,7 +316,7 @@ class ProblemsServiceIntegrationTest extends AbstractIntegrationSpec {
             with(oneLocation(StackTraceLocation).fileLocation as LineInFileLocation) {
                 length == -1
                 column == -1
-                line == 13
+                line == PROBLEM_LOCATION_LINE
                 path == buildFile.absolutePath
             }
         }
@@ -449,6 +451,36 @@ class ProblemsServiceIntegrationTest extends AbstractIntegrationSpec {
                 details == "This is a huge amount of extremely and very relevant details for this problem$num"
                 solutions == ["solution"]
             }
+        }
+    }
+
+    def "problems are rendered on the console when WarningMode=all configured"() {
+        given:
+        withReportProblemTask """
+            ${ProblemGroup.name} problemGroup = ${ProblemGroup.name}.create("sample-problems", "Sample Problems");
+            ${ProblemId.name} problemId = ${ProblemId.name}.create("prototype-project", "Project is a prototype", problemGroup)
+            problems.getReporter().report(problemId) { spec ->
+                spec.contextualLabel("This is a prototype and not a guideline for modeling real-life projects")
+                spec.severity(Severity.WARNING)
+                spec.details("Complex build logic like the Problems API usage should be integrated into plugins")
+                spec.solution("Look up the samples index for real-life examples")
+                spec.lineInFileLocation("/path/to/script", 20)
+            }
+        """
+
+        when:
+        run('reportProblem')
+
+        then:
+        outputContains """
+Problem found: Project is a prototype (id: sample-problems:prototype-project)
+  This is a prototype and not a guideline for modeling real-life projects
+    Complex build logic like the Problems API usage should be integrated into plugins
+    Solution: Look up the samples index for real-life examples
+    Location: /path/to/script
+        """
+        verifyAll(receivedProblem) {
+            definition.id.fqid == 'sample-problems:prototype-project'
         }
     }
 

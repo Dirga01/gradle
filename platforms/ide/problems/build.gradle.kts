@@ -26,7 +26,6 @@ description = """Problem SPI implementations.
 
 
 val problemReportReportPath by configurations.creating {
-    isVisible = false
     isCanBeConsumed = false
     attributes { attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named("configuration-cache-report")) }
 }
@@ -66,12 +65,14 @@ dependencies {
     implementation(projects.logging)
     implementation(projects.messaging)
     implementation(projects.modelCore)
+    implementation(projects.problemsRendering)
     implementation(projects.serialization)
     implementation(projects.serviceLookup)
     implementation(projects.snapshots)
 
     implementation(libs.guava)
     implementation(libs.fastutil)
+    implementation(libs.slf4jApi)
 
     testImplementation(projects.stdlibKotlinExtensions)
     testImplementation(testFixtures(projects.core))
@@ -80,7 +81,6 @@ dependencies {
 
     testImplementation(libs.mockitoKotlin)
     testImplementation(libs.kotlinReflect)
-    testImplementation(libs.mockitoKotlin2)
     testImplementation(libs.mockitoCore)
 
     integTestImplementation(projects.internalTesting)

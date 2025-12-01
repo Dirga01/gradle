@@ -154,6 +154,7 @@ public class DefaultExecutionPlan implements ExecutionPlan, QueryableExecutionPl
         discoverNodeRelationships(queue);
     }
 
+    @SuppressWarnings("NonApiType") //TODO: evaluate errorprone suppression (https://github.com/gradle/gradle/issues/35864)
     private void discoverNodeRelationships(LinkedList<Node> queue) {
         Set<Node> visiting = new HashSet<>();
         while (!queue.isEmpty()) {
@@ -228,7 +229,7 @@ public class DefaultExecutionPlan implements ExecutionPlan, QueryableExecutionPl
     @Override
     public FinalizedExecutionPlan finalizePlan() {
         if (scheduledNodes == null) {
-            throw new IllegalStateException("Nodes have node been scheduled yet.");
+            throw new IllegalStateException("Nodes have not been scheduled yet.");
         }
         if (finalizedPlan == null) {
             dependencyResolver.clear();
@@ -288,7 +289,7 @@ public class DefaultExecutionPlan implements ExecutionPlan, QueryableExecutionPl
     @Override
     public ScheduledNodes getScheduledNodes() {
         if (scheduledNodes == null) {
-            throw new IllegalStateException("Nodes have node been scheduled yet.");
+            throw new IllegalStateException("Nodes have not been scheduled yet.");
         }
         for (Node node : scheduledNodes) {
             if (node instanceof TaskNode) {

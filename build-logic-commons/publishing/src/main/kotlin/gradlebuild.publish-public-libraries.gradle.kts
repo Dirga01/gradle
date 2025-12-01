@@ -19,8 +19,13 @@ import java.time.Year
 plugins {
     id("gradlebuild.module-identity")
     id("gradlebuild.publish-defaults")
+    id("java-library")
     id("signing")
     `maven-publish`
+}
+
+gradleModule {
+    published = true
 }
 
 configureJavadocVariant()
@@ -62,7 +67,7 @@ fun configureJavadocVariant() {
 
 fun MavenPublication.configureGradleModulePublication() {
     from(components["java"])
-    artifactId = moduleIdentity.baseName.get()
+    artifactId = gradleModule.identity.baseName.get()
     versionMapping {
         usage("java-api") {
             fromResolutionResult()
@@ -74,13 +79,13 @@ fun MavenPublication.configureGradleModulePublication() {
 
     pom {
         packaging = "jar"
-        name = moduleIdentity.baseName.map { "${project.group}:$it" }
+        name = gradleModule.identity.baseName.map { "${project.group}:$it" }
     }
 }
 
 fun publishNormalizedToLocalRepository() {
     val localRepository = layout.buildDirectory.dir("repo")
-    val baseName = moduleIdentity.baseName
+    val baseName = gradleModule.identity.baseName
 
     publishing {
         repositories {
@@ -92,7 +97,7 @@ fun publishNormalizedToLocalRepository() {
         publications {
             create<MavenPublication>("local") {
                 configureGradleModulePublication()
-                version = moduleIdentity.version.get().baseVersion.version
+                version = gradleModule.identity.version.get().baseVersion.version
             }
         }
     }
@@ -135,7 +140,6 @@ fun publishNormalizedToLocalRepository() {
         }
         isCanBeResolved = false
         isCanBeConsumed = true
-        isVisible = false
         outgoing.artifact(localRepository) {
             builtBy(localPublish)
         }
@@ -160,5 +164,5 @@ fun publishNormalizedToLocalRepository() {
 tasks.register("promotionBuild") {
     description = "Build production distros, smoke test them and publish"
     group = "publishing"
-    dependsOn(":packageBuild", ":publishBuildLogic", "publish")
+    dependsOn(":packageBuild", "publish")
 }

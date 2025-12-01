@@ -16,6 +16,8 @@
 
 package org.gradle.api.attributes;
 
+import org.gradle.api.Incubating;
+import org.gradle.api.Named;
 import org.gradle.api.provider.Provider;
 import org.gradle.internal.HasInternalProtocol;
 import org.gradle.internal.scan.UsedByScanPlugin;
@@ -41,6 +43,7 @@ import java.util.Set;
 @HasInternalProtocol
 @UsedByScanPlugin
 public interface AttributeContainer extends HasAttributes {
+
     /**
      * Returns the set of attribute keys of this container.
      * @return the set of attribute keys.
@@ -75,6 +78,47 @@ public interface AttributeContainer extends HasAttributes {
     <T> AttributeContainer attributeProvider(Attribute<T> key, Provider<? extends T> provider);
 
     /**
+     * Lazily add all attributes from {@code other} to this container.
+     * <p>
+     * If the given attribute container contains attribute keys that already exist in this container,
+     * the corresponding values in this container will be overwritten. Subsequent calls to
+     * {@link #attribute(Attribute, Object)} and {@link #attributeProvider(Attribute, Provider)}
+     * will overwrite the corresponding values from this call.
+     * <p>
+     * Consider the following example:
+     *
+     * <pre class='autoTested'>
+     *     def color = Attribute.of("color", String)
+     *     def shape = Attribute.of("shape", String)
+     *
+     *     def foo = configurations.create("foo").attributes
+     *     foo.attribute(color, "green")
+     *
+     *     def bar = configurations.create("bar").attributes
+     *     bar.attribute(color, "red")
+     *     bar.attribute(shape, "square")
+     *     assert bar.getAttribute(color) == "red"    // `color` is originally red
+     *
+     *     bar.addAllLater(foo)
+     *     assert bar.getAttribute(color) == "green"  // `color` gets overwritten
+     *     assert bar.getAttribute(shape) == "square" // `shape` does not
+     *
+     *     foo.attribute(color, "purple")
+     *     bar.getAttribute(color) == "purple"        // addAllLater is lazy
+     *
+     *     bar.attribute(color, "orange")
+     *     assert bar.getAttribute(color) == "orange" // `color` gets overwritten again
+     *     assert bar.getAttribute(shape) == "square" // `shape` remains the same
+     * </pre>
+     *
+     * @return this container
+     *
+     * @since 9.1.0
+     */
+    @Incubating
+    AttributeContainer addAllLater(AttributeContainer other);
+
+    /**
      * Returns the value of an attribute found in this container with the type specified
      * by the given {@code key}, or {@code null} if this container doesn't have it.
      * <p>
@@ -99,4 +143,12 @@ public interface AttributeContainer extends HasAttributes {
      * @return true if this attribute is found in this container.
      */
     boolean contains(Attribute<?> key);
+
+    /**
+     * Creates a value of the given type for an Attribute.
+     *
+     * @since 9.3.0
+     */
+    @Incubating
+    <T extends Named> T named(Class<T> type, String name);
 }

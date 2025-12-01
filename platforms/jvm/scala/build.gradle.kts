@@ -26,7 +26,6 @@ dependencies {
     api(projects.toolchainsJvmShared)
     api(projects.workers)
 
-    api(libs.groovy)
     api(libs.inject)
     api(libs.jspecify)
 
@@ -50,6 +49,8 @@ dependencies {
         exclude(module="log4j-api")
     }
 
+    runtimeOnly(libs.groovy)
+
     testImplementation(projects.baseServicesGroovy)
     testImplementation(projects.files)
     testImplementation(projects.resources)
@@ -61,6 +62,7 @@ dependencies {
     testImplementation(testFixtures(projects.languageJava))
 
     integTestImplementation(projects.jvmServices)
+    integTestImplementation(testFixtures(projects.testingBase))
 
     testFixturesImplementation(testFixtures(projects.core))
     testFixturesImplementation(testFixtures(projects.languageJvm))
@@ -96,7 +98,6 @@ packageCycles {
     excludePatterns.add("org/gradle/language/scala/tasks/*")
 }
 
-integTest.usesJavadocCodeSnippets = true
 tasks.isolatedProjectsIntegTest {
     enabled = false
 }

@@ -51,7 +51,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.groovy.scripts.TextResourceScriptSource
 import org.gradle.initialization.BuildLayoutParameters
 import org.gradle.initialization.ClassLoaderScopeRegistry
-import org.gradle.initialization.DefaultProjectDescriptor
+import org.gradle.initialization.ProjectDescriptorInternal
 import org.gradle.internal.Try
 import org.gradle.internal.build.NestedRootBuildRunner.createNestedBuildTree
 import org.gradle.internal.classpath.ClassPath
@@ -69,7 +69,6 @@ import org.gradle.kotlin.dsl.accessors.hashCodeFor
 import org.gradle.kotlin.dsl.concurrent.AsyncIOScopeFactory
 import org.gradle.kotlin.dsl.concurrent.IO
 import org.gradle.kotlin.dsl.concurrent.writeFile
-import org.gradle.kotlin.dsl.precompile.PrecompiledScriptDependenciesResolver
 import org.gradle.kotlin.dsl.provider.plugins.precompiled.PrecompiledScriptException
 import org.gradle.kotlin.dsl.provider.plugins.precompiled.PrecompiledScriptPlugin
 import org.gradle.kotlin.dsl.provider.plugins.precompiled.scriptPluginFilesOf
@@ -113,15 +112,15 @@ abstract class GeneratePrecompiledScriptPluginAccessors @Inject internal constru
 
     @get:InputFiles
     @get:Classpath
-    val runtimeClassPathFiles: FileCollection
-        get() = runtimeClassPathArtifactCollection.get().artifactFiles
+    val accessorsGenerationClassPathFiles: FileCollection
+        get() = accessorsGenerationClassPathArtifactCollection.get().artifactFiles
 
     /**
-     * Tracked via [runtimeClassPathFiles].
+     * Tracked via [accessorsGenerationClassPathFiles].
      */
     @get:Internal
     internal
-    abstract val runtimeClassPathArtifactCollection: Property<ArtifactCollection>
+    abstract val accessorsGenerationClassPathArtifactCollection: Property<ArtifactCollection>
 
     @get:OutputDirectory
     abstract val metadataOutputDir: DirectoryProperty
@@ -152,7 +151,7 @@ abstract class GeneratePrecompiledScriptPluginAccessors @Inject internal constru
      * hash code.
      * 5. For each group, for each script plugin in the group, write the generated package name to a file named
      * after the contents of the script plugin file. This is so the file can be easily found by
-     * [PrecompiledScriptDependenciesResolver].
+     * [org.gradle.kotlin.dsl.provider.PrecompiledScriptsEnvironment].
      */
     @TaskAction
     fun generate() {
@@ -359,7 +358,7 @@ abstract class GeneratePrecompiledScriptPluginAccessors @Inject internal constru
                     }
                     val rootProjectScope = baseScope.createChild("accessors-root-project", null)
                     settings.rootProject.name = "gradle-kotlin-dsl-accessors"
-                    val projectState = gradle.serviceOf<ProjectStateRegistry>().registerProject(gradle.owner, settings.rootProject as DefaultProjectDescriptor)
+                    val projectState = gradle.serviceOf<ProjectStateRegistry>().registerProject(gradle.owner, settings.rootProject as ProjectDescriptorInternal)
                     projectState.createMutableModel(rootProjectScope, baseScope)
                     val rootProject = projectState.mutableModel
                     gradle.rootProject = rootProject
@@ -437,7 +436,7 @@ abstract class GeneratePrecompiledScriptPluginAccessors @Inject internal constru
         configurations: ConfigurationContainer,
         fileCollectionFactory: FileCollectionFactory
     ): Configuration {
-        val dependencies = runtimeClassPathArtifactCollection.get().artifacts.map {
+        val dependencies = accessorsGenerationClassPathArtifactCollection.get().artifacts.map {
             when (val componentIdentifier = it.id.componentIdentifier) {
                 is OpaqueComponentIdentifier -> DefaultFileCollectionDependency(
                     componentIdentifier,

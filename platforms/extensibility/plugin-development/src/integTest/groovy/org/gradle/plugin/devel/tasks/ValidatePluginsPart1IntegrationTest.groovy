@@ -19,9 +19,8 @@ package org.gradle.plugin.devel.tasks
 import org.gradle.api.artifacts.transform.InputArtifact
 import org.gradle.api.artifacts.transform.InputArtifactDependencies
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
-import org.gradle.internal.reflect.validation.ValidationMessageChecker
 
-class ValidatePluginsPart1IntegrationTest extends AbstractIntegrationSpec implements ValidationMessageChecker, ValidatePluginsTrait {
+class ValidatePluginsPart1IntegrationTest extends AbstractIntegrationSpec implements ValidatePluginsTrait {
 
     def "supports recursive types"() {
         groovyTaskSource << """
@@ -542,25 +541,8 @@ class ValidatePluginsPart1IntegrationTest extends AbstractIntegrationSpec implem
 
         expect:
         assertValidationFailsWith([
-            warning("""
-                Type 'MyTask' must be annotated either with @CacheableTask or with @DisableCachingByDefault.
-
-                Reason: The task author should make clear why a task is not cacheable.
-
-                Possible solutions:
-                  1. Add @DisableCachingByDefault(because = ...).
-                  2. Add @CacheableTask.
-                  3. Add @UntrackedTask(because = ...).
-            """.stripIndent(true).trim(), "validation_problems", "disable_caching_by_default"),
-            warning("""
-                Type 'MyTransformAction' must be annotated either with @CacheableTransform or with @DisableCachingByDefault.
-
-                Reason: The transform action author should make clear why a transform action is not cacheable.
-
-                Possible solutions:
-                  1. Add @DisableCachingByDefault(because = ...).
-                  2. Add @CacheableTransform.
-            """.stripIndent(true).trim(), "validation_problems", "disable_caching_by_default")
+            error(missingCachingAnnotationConfig { forTask().type("MyTask") }, "validation_problems", "disable_caching_by_default"),
+            error(missingCachingAnnotationConfig { forTransformAction().type("MyTransformAction") }, "validation_problems", "disable_caching_by_default")
         ])
 
          and:

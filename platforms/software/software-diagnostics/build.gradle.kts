@@ -7,12 +7,6 @@ description = """Reports related to the dependency management functionality used
 in the Gradle builds of software projects.  Any reports or reporting tasks related to or dependent upon
 dependency management types should be included here."""
 
-errorprone {
-    disabledChecks.addAll(
-        "NonApiType" // 1 occurrences
-    )
-}
-
 dependencies {
     api(projects.baseDiagnostics)
     api(projects.baseServices)
@@ -39,8 +33,8 @@ dependencies {
     implementation(projects.loggingApi)
 
     implementation(libs.commonsLang)
-    implementation(libs.groovyJson)
     implementation(libs.guava)
+    implementation(libs.gson)
     implementation(libs.jatl)
 
     testFixturesApi(testFixtures(projects.platformNative))

@@ -119,6 +119,20 @@
     "crossVersionTests": false
   },
   {
+    "name": "build-discovery",
+    "path": "platforms/core-runtime/build-discovery",
+    "unitTests": false,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
+    "name": "build-discovery-impl",
+    "path": "platforms/core-runtime/build-discovery-impl",
+    "unitTests": false,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
     "name": "build-events",
     "path": "subprojects/build-events",
     "unitTests": true,
@@ -157,7 +171,7 @@
     "name": "build-operations-trace",
     "path": "platforms/core-runtime/build-operations-trace",
     "unitTests": false,
-    "functionalTests": false,
+    "functionalTests": true,
     "crossVersionTests": false
   },
   {
@@ -171,13 +185,6 @@
     "name": "build-process-services",
     "path": "platforms/core-runtime/build-process-services",
     "unitTests": true,
-    "functionalTests": false,
-    "crossVersionTests": false
-  },
-  {
-    "name": "build-process-startup",
-    "path": "platforms/core-runtime/build-process-startup",
-    "unitTests": false,
     "functionalTests": false,
     "crossVersionTests": false
   },
@@ -247,7 +254,7 @@
   {
     "name": "configuration-cache-base",
     "path": "platforms/core-configuration/configuration-cache-base",
-    "unitTests": true,
+    "unitTests": false,
     "functionalTests": false,
     "crossVersionTests": false
   },
@@ -269,6 +276,13 @@
     "name": "core-api",
     "path": "subprojects/core-api",
     "unitTests": true,
+    "functionalTests": true,
+    "crossVersionTests": false
+  },
+  {
+    "name": "core-flow-services-api",
+    "path": "platforms/core-configuration/core-flow-services-api",
+    "unitTests": false,
     "functionalTests": true,
     "crossVersionTests": false
   },
@@ -310,7 +324,7 @@
   {
     "name": "daemon-server",
     "path": "platforms/core-runtime/daemon-server",
-    "unitTests": false,
+    "unitTests": true,
     "functionalTests": false,
     "crossVersionTests": false
   },
@@ -393,14 +407,14 @@
   },
   {
     "name": "distributions-basics",
-    "path": "platforms/core-runtime/distributions-basics",
+    "path": "testing/distributions-basics",
     "unitTests": false,
     "functionalTests": false,
     "crossVersionTests": false
   },
   {
     "name": "distributions-core",
-    "path": "platforms/core-runtime/distributions-core",
+    "path": "testing/distributions-core",
     "unitTests": false,
     "functionalTests": false,
     "crossVersionTests": false
@@ -609,6 +623,13 @@
     "crossVersionTests": false
   },
   {
+    "name": "groovy-loader",
+    "path": "platforms/core-runtime/groovy-loader",
+    "unitTests": false,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
     "name": "guava-serialization-codecs",
     "path": "platforms/core-configuration/guava-serialization-codecs",
     "unitTests": false,
@@ -647,7 +668,7 @@
     "name": "input-tracking",
     "path": "platforms/core-configuration/input-tracking",
     "unitTests": true,
-    "functionalTests": false,
+    "functionalTests": true,
     "crossVersionTests": false
   },
   {
@@ -770,6 +791,13 @@
     "crossVersionTests": false
   },
   {
+    "name": "java-api-extractor",
+    "path": "platforms/core-configuration/java-api-extractor",
+    "unitTests": true,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
     "name": "java-compiler-plugin",
     "path": "platforms/jvm/java-compiler-plugin",
     "unitTests": true,
@@ -780,6 +808,13 @@
     "name": "java-platform",
     "path": "platforms/jvm/java-platform",
     "unitTests": false,
+    "functionalTests": true,
+    "crossVersionTests": false
+  },
+  {
+    "name": "javadoc",
+    "path": "platforms/jvm/javadoc",
+    "unitTests": true,
     "functionalTests": true,
     "crossVersionTests": false
   },
@@ -1092,6 +1127,27 @@
     "crossVersionTests": false
   },
   {
+    "name": "project-features",
+    "path": "platforms/core-configuration/project-features",
+    "unitTests": false,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
+    "name": "project-features-api",
+    "path": "platforms/core-configuration/project-features-api",
+    "unitTests": false,
+    "functionalTests": false,
+    "crossVersionTests": false
+  },
+  {
+    "name": "project-features-demos",
+    "path": "platforms/core-configuration/project-features-demos",
+    "unitTests": false,
+    "functionalTests": true,
+    "crossVersionTests": false
+  },
+  {
     "name": "public-api",
     "path": "packaging/public-api",
     "unitTests": false,
@@ -1320,13 +1376,6 @@
     "path": "platforms/software/testing-base-infrastructure",
     "unitTests": true,
     "functionalTests": true,
-    "crossVersionTests": false
-  },
-  {
-    "name": "testing-junit-platform",
-    "path": "platforms/jvm/testing-junit-platform",
-    "unitTests": false,
-    "functionalTests": false,
     "crossVersionTests": false
   },
   {

@@ -16,11 +16,12 @@
 
 package org.gradle.api.internal.tasks.testing;
 
+import org.gradle.api.GradleException;
 import org.gradle.api.tasks.testing.TestFailure;
 import org.gradle.api.tasks.testing.TestFailureDetails;
 import org.gradle.internal.serialize.PlaceholderExceptionSupport;
-
 import org.jspecify.annotations.Nullable;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
@@ -65,7 +66,7 @@ public class DefaultTestFailure extends TestFailure {
 
     public static TestFailure fromTestAssumptionFailure(Throwable failure) {
         TestFailureDetails details = new AssumptionFailureDetails(messageOf(failure), classNameOf(failure), stacktraceOf(failure));
-        return new DefaultTestFailure(failure, details, Collections.<TestFailure>emptyList());
+        return new DefaultTestFailure(failure, details, Collections.emptyList());
     }
 
     public static TestFailure fromTestAssertionFailure(Throwable failure, String expected, String actual, @Nullable List<TestFailure> causes) {
@@ -83,6 +84,11 @@ public class DefaultTestFailure extends TestFailure {
         return new DefaultTestFailure(failure, details, emptyIfNull(causes));
     }
 
+    public static TestFailure fromTestFrameworkStartupFailure(Throwable failure) {
+        TestFailureDetails details = new DefaultTestFailureDetails(messageOf(failure), classNameOf(failure), stacktraceOf(failure));
+        return new DefaultTestFailure(failure, details, Collections.emptyList());
+    }
+
     private static List<TestFailure> emptyIfNull(@Nullable List<TestFailure> causes) {
         return causes == null ? Collections.<TestFailure>emptyList() : causes;
     }
@@ -91,7 +97,8 @@ public class DefaultTestFailure extends TestFailure {
         try {
             return throwable.getMessage();
         } catch (Throwable t) {
-            return String.format("Could not determine failure message for exception of type %s: %s", classNameOf(throwable), t);
+            // If we cannot read the message, generate an exception and use its message instead of throwing it.
+            return createFailedToReadThrowableException("message", throwable, t).getMessage();
         }
     }
 
@@ -108,8 +115,16 @@ public class DefaultTestFailure extends TestFailure {
             throwable.printStackTrace(wrt);
             return out.toString();
         } catch (Exception t) {
-            return stacktraceOf(t);
+            // If we cannot read the stacktrace, generate an exception and use its stacktrace instead of throwing it.
+            return stacktraceOf(createFailedToReadThrowableException("stacktrace", throwable, t));
         }
+    }
+
+    private static Throwable createFailedToReadThrowableException(String part, Throwable original, Throwable cause) {
+        return new GradleException(
+            String.format("Could not determine failure %s for exception of type %s: %s", part, classNameOf(original), cause),
+            cause
+        );
     }
 
 }

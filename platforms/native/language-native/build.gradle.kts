@@ -4,16 +4,6 @@ plugins {
 
 description = "Plugins and domain objects for building different native languages"
 
-errorprone {
-    disabledChecks.addAll(
-        "DefaultCharset", // 1 occurrences
-        "JavaLangClash", // 1 occurrences
-        "MixedMutabilityReturnType", // 1 occurrences
-        "UnusedMethod", // 2 occurrences
-        "UnusedVariable", // 10 occurrences
-    )
-}
-
 dependencies {
     api(projects.baseServices)
     api(projects.buildOperations)
@@ -24,7 +14,6 @@ dependencies {
     api(projects.files)
     api(projects.fileCollections)
     api(projects.fileOperations)
-    api(projects.fileTemp)
     api(projects.hashing)
     api(projects.stdlibJavaExtensions)
     api(projects.modelCore)
@@ -89,7 +78,6 @@ packageCycles {
     excludePatterns.add("org/gradle/language/nativeplatform/internal/**")
 }
 
-integTest.usesJavadocCodeSnippets = true
 tasks.isolatedProjectsIntegTest {
     enabled = false
 }

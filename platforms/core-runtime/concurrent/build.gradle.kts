@@ -21,12 +21,21 @@ plugins {
 
 description = "Tools to work with managed executors"
 
-gradlebuildJava.usedInWorkers()
+gradleModule {
+    targetRuntimes {
+        usedInWorkers = true
+    }
+}
 
 dependencies {
     api(projects.stdlibJavaExtensions)
 
     api(libs.jspecify)
+    api(libs.jsr305)
 
     implementation(libs.slf4jApi)
+}
+
+errorprone {
+    nullawayEnabled = true
 }

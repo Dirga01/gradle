@@ -22,6 +22,7 @@ import org.gradle.api.specs.Spec;
 import org.gradle.execution.EntryTaskSelector;
 import org.gradle.execution.plan.PlanExecutor;
 import org.gradle.execution.plan.QueryableExecutionPlan;
+import org.gradle.execution.plan.TaskNode;
 import org.gradle.internal.build.BuildLifecycleController;
 import org.gradle.internal.build.BuildState;
 import org.gradle.internal.build.BuildStateRegistry;
@@ -64,6 +65,7 @@ public class DefaultIncludedBuildTaskGraph implements BuildTreeWorkGraphControll
     private final int monitoringPollTime;
     private final TimeUnit monitoringPollTimeUnit;
     private final ManagedExecutor executorService;
+    @SuppressWarnings("ThreadLocalUsage") //TODO: evaluate errorprone suppression (https://github.com/gradle/gradle/issues/35864)
     private final ThreadLocal<DefaultBuildTreeWorkGraph> current = new ThreadLocal<>();
 
     @Inject
@@ -130,7 +132,7 @@ public class DefaultIncludedBuildTaskGraph implements BuildTreeWorkGraphControll
 
     @Override
     public void close() throws IOException {
-        CompositeStoppable.stoppable(executorService);
+        CompositeStoppable.stoppable(executorService).stop();
     }
 
     private <T> T withState(Function<DefaultBuildTreeWorkGraph, T> action) {
@@ -248,12 +250,8 @@ public class DefaultIncludedBuildTaskGraph implements BuildTreeWorkGraphControll
 
         private void expectInState(State expectedState) {
             if (state != expectedState) {
-                throw unexpectedState();
+                throw new IllegalStateException("Work graph is in an unexpected state: " + state + ", expected: " + expectedState);
             }
-        }
-
-        private IllegalStateException unexpectedState() {
-            return new IllegalStateException("Work graph is in an unexpected state: " + state);
         }
 
         private void assertIsOwner() {
@@ -297,6 +295,11 @@ public class DefaultIncludedBuildTaskGraph implements BuildTreeWorkGraphControll
         @Override
         public String healthDiagnostics() {
             return taskNode.healthDiagnostics();
+        }
+
+        @Override
+        public TaskNode getTaskNode() {
+            return taskNode.getTaskNode();
         }
     }
 }

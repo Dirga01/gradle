@@ -1,6 +1,7 @@
 package configurations
 
 import common.BuildToolBuildJvm
+import common.FlakyTestStrategy
 import common.Jvm
 import common.Os
 import common.buildScanTagParam
@@ -27,15 +28,15 @@ class Gradleception(
     stage: Stage,
     buildJvm: Jvm,
     jvmDescription: String,
-    bundleGroovy4: Boolean = false,
+    bundleGroovyMajor: Int? = null,
 ) : OsAwareBaseGradleBuildType(os = Os.LINUX, stage = stage, init = {
         val idParts = mutableListOf<String>()
         val labels = mutableListOf<String>()
         val descriptionParts = mutableListOf<String>()
-        if (bundleGroovy4) {
-            labels += "Groovy 4.x"
-            idParts += "Groovy4"
-            descriptionParts += "bundling Groovy 4"
+        if (bundleGroovyMajor != null) {
+            labels += "Groovy $bundleGroovyMajor.x"
+            idParts += "Groovy$bundleGroovyMajor"
+            descriptionParts += "bundling Groovy $bundleGroovyMajor"
         }
         val vendor = buildJvm.vendor.displayName
         val version = buildJvm.version.major
@@ -80,13 +81,13 @@ class Gradleception(
         val dogfoodTimestamp1 = "19800101010101+0000"
         val dogfoodTimestamp2 = "19800202020202+0000"
         val buildScanTagForType = buildScanTagParam("Gradleception")
-        val buildScanTagForGroovy4 = buildScanTagParam("Groovy4")
+        val buildScanTagForGroovyMajor = buildScanTagParam("Groovy$bundleGroovyMajor")
         val buildScanTags =
-            if (bundleGroovy4) listOf(buildScanTagForType, buildScanTagForGroovy4) else listOf(buildScanTagForType)
+            if (bundleGroovyMajor != null) listOf(buildScanTagForType, buildScanTagForGroovyMajor) else listOf(buildScanTagForType)
         val extraSysProp = mutableListOf<String>()
         val extraTasks = mutableListOf<String>()
-        if (bundleGroovy4) {
-            extraSysProp += "-DbundleGroovy4=true"
+        if (bundleGroovyMajor != null) {
+            extraSysProp += "-DbundleGroovyMajor=$bundleGroovyMajor"
             extraTasks += ":plugins-groovy:embeddedIntegTest"
         }
         if (buildJvm.version != BuildToolBuildJvm.version) {
@@ -153,7 +154,11 @@ class Gradleception(
 
                 localGradle {
                     name = "QUICKCHECK_WITH_GRADLE_BUILT_BY_GRADLE"
-                    tasks = "clean sanityCheck test ${extraTasks.joinToString(" ")} -PflakyTests=exclude --no-configuration-cache"
+                    extraTasks
+                    tasks =
+                        "clean sanityCheck test ${extraTasks.joinToString(
+                            " ",
+                        )} -PflakyTests=${FlakyTestStrategy.EXCLUDE} --no-configuration-cache"
                     gradleHome = "%teamcity.build.checkoutDir%/dogfood-second"
                     gradleParams = defaultParameters
                 }

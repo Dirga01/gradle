@@ -19,7 +19,6 @@ package org.gradle.internal;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -42,7 +41,7 @@ public abstract class Try<T extends @Nullable Object> {
      * The returned object will either hold the result or the exception thrown during the operation.
      * If the callable returns null, then the returned Try instance will hold null as its value.
      */
-    public static <U> Try<U> ofFailable(Callable<U> failable) {
+    public static <U extends @Nullable Object> Try<U> ofFailable(Callable<U> failable) {
         try {
             return Try.successful(failable.call());
         } catch (Exception e) {
@@ -242,7 +241,7 @@ public abstract class Try<T extends @Nullable Object> {
                 throw (Error) failure;
             }
             if (failure instanceof IOException) {
-                throw new UncheckedIOException((IOException) failure);
+                throw UncheckedException.throwAsUncheckedException(failure);
             }
             throw new RuntimeException(failure);
         }

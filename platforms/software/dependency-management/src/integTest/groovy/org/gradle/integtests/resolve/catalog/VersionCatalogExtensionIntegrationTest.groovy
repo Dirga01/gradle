@@ -19,13 +19,25 @@ package org.gradle.integtests.resolve.catalog
 import org.gradle.api.internal.catalog.problems.VersionCatalogErrorMessages
 import org.gradle.api.internal.catalog.problems.VersionCatalogProblemId
 import org.gradle.api.internal.catalog.problems.VersionCatalogProblemTestFor
-import org.gradle.integtests.resolve.PluginDslSupport
+import org.gradle.integtests.fixtures.resolve.ResolveTestFixture
 import spock.lang.Issue
 
-class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogIntegrationTest implements PluginDslSupport, VersionCatalogErrorMessages {
+class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogIntegrationTest implements VersionCatalogErrorMessages {
+
+    def resolve = new ResolveTestFixture(testDirectory)
 
     def setup() {
         enableProblemsApiCheck()
+    }
+
+    String getCommon() {
+        """
+            plugins {
+                id("java-library")
+            }
+
+            ${resolve.configureProject("runtimeClasspath")}
+        """
     }
 
     def "dependencies declared in settings trigger the creation of an extension (notation=#notation)"() {
@@ -146,7 +158,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
 
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.my.great.lib
@@ -183,7 +195,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.myLib
@@ -218,7 +230,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.my.great.lib
@@ -254,7 +266,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.myLib
@@ -302,13 +314,14 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
             it.rootMetaData.expectGet()
             it.artifact.expectGet()
         }
-        publishLib("lib-core", "1.1")
+        // This module will not be resolved at all
+        mavenHttpRepo.module("org.gradle.test", "lib-core", "1.1").withModuleMetadata().publish()
         publishLib("lib-ext", "1.0").with {
             it.rootMetaData.expectGet()
             it.artifact.expectGet()
         }
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation "org.gradle.test:lib-core:1.+" // intentional!
@@ -368,13 +381,14 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
             it.rootMetaData.expectGet()
             it.artifact.expectGet()
         }
-        publishLib("lib-core", "1.1")
+        // This module will not be resolved at all
+        mavenHttpRepo.module("org.gradle.test", "lib-core", "1.1").withModuleMetadata().publish()
         publishLib("lib-ext", "1.0").with {
             it.rootMetaData.expectGet()
             it.artifact.expectGet()
         }
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation "org.gradle.test:lib-core:1.+" // intentional!
@@ -419,7 +433,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.1").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation(libs.myLib) {
@@ -459,7 +473,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.1").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation "org.gradle.test:lib" // intentional!
@@ -508,7 +522,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         def lib2 = mavenHttpRepo.module("org.gradle.test", "lib2", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation(libs.bundles.myBundle)
@@ -550,7 +564,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         def lib2 = mavenHttpRepo.module("org.gradle.test", "lib2", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation(libs.bundles.my.great.bundle)
@@ -592,7 +606,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.1").publish()
         def lib2 = mavenHttpRepo.module("org.gradle.test", "lib2", "1.1").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation(libs.bundles.myBundle) {
@@ -635,7 +649,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation myLibs.myLib
@@ -677,7 +691,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         def lib2 = mavenHttpRepo.module("org.gradle.test", "lib2", "1.1").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation myLibs.myLib
@@ -724,7 +738,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation myLibs.myLib
@@ -760,7 +774,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation project(":other")
@@ -847,7 +861,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
             }
         """
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.lib
@@ -906,7 +920,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
 
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation 'com.acme:included:1.0'
@@ -952,7 +966,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         def lib2 = mavenHttpRepo.module("org.gradle.test", "lib2", "1.1").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.myLib
@@ -995,7 +1009,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         def lib2 = mavenHttpRepo.module("org.gradle.test", "lib2", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.myLib
@@ -1035,7 +1049,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
         def lib = mavenHttpRepo.module("org.gradle.test", "lib", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation "org.gradle.test:lib:\${libs.versions.libVersion.get()}"
@@ -1100,7 +1114,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         publishLib("lib")
         publishLib("lib.subgroup")
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation(testFixtures(libs.myLib))
@@ -1154,7 +1168,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
             .publish()
             .pom.expectGet()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation(platform(libs.myLib))
@@ -1209,7 +1223,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
             .publish()
             .pom.expectGet()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation(enforcedPlatform(libs.myLib))
@@ -1268,7 +1282,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         libSubgroup.getArtifact(classifier: 'test-fixtures').expectGet()
 
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation(variantOf(libs.myLib) { classifier('test-fixtures') })
@@ -1320,7 +1334,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
 
 
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation(variantOf(libs.myLib) { artifactType('txt') })
@@ -1358,7 +1372,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         def top = mavenHttpRepo.module("org", "top", "1.0").publish()
         def bottom = mavenHttpRepo.module("org", "bottom", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.top
@@ -1398,7 +1412,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         def top = mavenHttpRepo.module("org", "top", "1.0").publish()
         def bottom = mavenHttpRepo.module("org", "bottom", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.top.middle
@@ -1438,7 +1452,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         def top = mavenHttpRepo.module("org", "top", "1.0").publish()
         def bottom = mavenHttpRepo.module("org", "bottom", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.top
@@ -1479,7 +1493,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         def a = mavenHttpRepo.module("org", "a", "1.0").publish()
         def bar = mavenHttpRepo.module("org", "bar", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.foo.bar.baz.a
@@ -1633,7 +1647,7 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
 
         buildFile << """
-            apply plugin: 'java-library'
+            $common
             apply plugin: MyPlugin
         """
         def lib = mavenHttpRepo.module('org', 'test', '1.0').publish()
@@ -1677,10 +1691,11 @@ class VersionCatalogExtensionIntegrationTest extends AbstractVersionCatalogInteg
         """
 
         buildFile << """
-            apply plugin: 'java-library'
+            plugins {
+                id("my.plugin")
+            }
+            $common
         """
-
-        withPlugin('my.plugin')
 
         def lib = mavenHttpRepo.module('org', 'test', '1.0').publish()
 
@@ -1809,7 +1824,7 @@ Second: 1.1"""
         def lib1 = mavenHttpRepo.module("org", "lib1", "1.0").publish()
         def lib2 = mavenHttpRepo.module("org", "lib2", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.bundles.my
@@ -1852,7 +1867,7 @@ Second: 1.1"""
         def lib1 = mavenHttpRepo.module("org", "lib1", "1.0").publish()
         def lib2 = mavenHttpRepo.module("org", "lib2", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.bundles.my.middle
@@ -1895,7 +1910,7 @@ Second: 1.1"""
         def lib1 = mavenHttpRepo.module("org", "lib1", "1.0").publish()
         def lib2 = mavenHttpRepo.module("org", "lib2", "1.0").publish()
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation libs.bundles.my
@@ -1950,7 +1965,7 @@ Second: 1.1"""
         and:
         verifyAll(receivedProblem) {
             fqid == 'dependency-version-catalog:reserved-alias-name'
-            contextualLabel == "Problem: In version catalog libs, alias '$reserved' is not a valid alias."
+            contextualLabel == "Problem: In version catalog libs, alias '$reserved' is a reserved alias."
             details == "Alias '$reserved' is a reserved name in Gradle which prevents generation of accessors."
             solutions == [ 'Use a different alias which doesn\'t contain any of \'convention\' or \'extensions\'.' ]
         }
@@ -1991,7 +2006,7 @@ Second: 1.1"""
         and:
         verifyAll(receivedProblem) {
             fqid == 'dependency-version-catalog:reserved-alias-name'
-            contextualLabel == "Problem: In version catalog libs, alias '$reserved' is not a valid alias."
+            contextualLabel == "Problem: In version catalog libs, alias '$reserved' is a reserved alias."
             details == "Alias '$reserved' is a reserved name in Gradle which prevents generation of accessors."
             solutions == [ 'Use a different alias which doesn\'t contain \'class\'.' ]
         }
@@ -2032,7 +2047,7 @@ Second: 1.1"""
         and:
         verifyAll(receivedProblem) {
             fqid == 'dependency-version-catalog:reserved-alias-name'
-            contextualLabel == "Problem: In version catalog libs, alias '$reservedName' is not a valid alias."
+            contextualLabel == "Problem: In version catalog libs, alias '$reservedName' is a reserved alias."
             details == "Prefix for dependency shouldn\'t be equal to '$prefix'"
             solutions == [ 'Use a different alias which prefix is not equal to \'bundles\', \'plugins\', or \'versions\'' ]
         }
@@ -2132,7 +2147,7 @@ Second: 1.1"""
         lib.publish()
 
         buildFile << """
-            apply plugin: 'java-library'
+            $common
 
             dependencies {
                 implementation(libs.myLib) {
@@ -2244,7 +2259,8 @@ Second: 1.1"""
         def lib2 = mavenHttpRepo.module("org.gradle.test", "lib2", "3.0.5").publish()
 
         buildFile << """
-            apply plugin: 'java-library'
+            $common
+
             dependencies {
                 implementation "org.gradle.test:lib:3.0.6"
                 implementation "org.gradle.test:lib2:3.0.6"
@@ -2294,7 +2310,8 @@ Second: 1.1"""
         """
 
         buildFile << """
-            apply plugin: 'java-library'
+            $common
+
             dependencies {
                 implementation "org.gradle.test:lib:3.0.6"
                 configurations.all {
@@ -2330,7 +2347,8 @@ Second: 1.1"""
         """
 
         buildFile << """
-            apply plugin: 'java-library'
+            $common
+
             dependencies {
                 implementation "org.gradle.test:lib:3.0.6"
                 configurations.all {

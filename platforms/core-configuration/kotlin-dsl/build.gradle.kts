@@ -7,7 +7,7 @@ plugins {
     id("gradlebuild.kotlin-dsl-dependencies-embedded")
     id("gradlebuild.kotlin-dsl-sam-with-receiver")
     id("gradlebuild.kotlin-dsl-plugin-bundle-integ-tests")
-    id("com.gradleup.shadow").version("9.0.0-beta11")
+    id("com.gradleup.shadow").version("9.1.0")
 }
 
 description = "Kotlin DSL Provider"
@@ -23,14 +23,16 @@ dependencies {
     api(projects.hashing)
     api(projects.kotlinDslToolingModels)
     api(projects.loggingApi)
+    api(projects.modelCore)
+    api(projects.persistentCache)
     api(projects.stdlibJavaExtensions)
     api(projects.toolingApi)
 
     api(libs.groovy)
     api(libs.guava)
+    api(libs.kotlinCompilerEmbeddable)
     api(libs.kotlinStdlib)
     api(libs.inject)
-    api(libs.slf4jApi)
 
     implementation(projects.baseAsm)
     implementation(projects.instrumentationReporting)
@@ -38,7 +40,6 @@ dependencies {
     implementation(projects.buildOption)
     implementation(projects.coreKotlinExtensions)
     implementation(projects.declarativeDslEvaluator)
-    implementation(projects.declarativeDslInternalUtils)
     implementation(projects.declarativeDslProvider)
     implementation(projects.enterpriseLogging)
     implementation(projects.enterpriseOperations)
@@ -50,25 +51,25 @@ dependencies {
     implementation(projects.io)
     implementation(projects.logging)
     implementation(projects.messaging)
-    implementation(projects.modelCore)
-    implementation(projects.normalizationJava)
-    implementation(projects.persistentCache)
+    implementation(projects.projectFeaturesApi)
     implementation(projects.resources)
     implementation(projects.scopedPersistentCache)
+    implementation(projects.serialization)
     implementation(projects.serviceLookup)
     implementation(projects.serviceProvider)
     implementation(projects.snapshots)
-    implementation(projects.wrapperShared)
+    implementation(projects.projectFeatures)
 
-    implementation("org.gradle:java-api-extractor")
+    implementation(projects.javaApiExtractor)
     implementation("org.gradle:kotlin-dsl-shared-runtime")
 
     implementation(libs.asm)
-    implementation(libs.groovyJson)
-    implementation(libs.jspecify)
+    implementation(libs.jetbrainsAnnotations)
     implementation(libs.kotlinReflect)
+    implementation(libs.slf4jApi)
 
-    implementation(libs.kotlinCompilerEmbeddable)
+    compileOnly(libs.jspecify)
+
     api(libs.futureKotlin("script-runtime"))
 
     api(libs.futureKotlin("scripting-common")) {
@@ -92,7 +93,11 @@ dependencies {
     implementation(libs.futureKotlin("assignment-compiler-plugin-embeddable")) {
         isTransitive = false
     }
-    shadow("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0") {
+    shadow(libs.futureKotlin("metadata-jvm")) {
+        isTransitive = false
+    }
+
+    runtimeOnly(libs.kotlinBuildToolsImpl) {
         isTransitive = false
     }
 
@@ -135,6 +140,8 @@ dependencies {
     testFixturesImplementation(projects.testKit)
     testFixturesImplementation(projects.internalTesting)
     testFixturesImplementation(projects.internalIntegTesting)
+    testFixturesImplementation(projects.unitTestFixtures)
+    testFixturesImplementation(projects.serviceRegistryImpl)
 
     testFixturesImplementation(testFixtures(projects.hashing))
 
@@ -148,7 +155,7 @@ dependencies {
     integTestDistributionRuntimeOnly(projects.distributionsBasics)
 }
 
-// Relocate kotlinx-metadata-jvm
+// Relocate kotlin-metadata-jvm
 configurations.compileOnly {
     extendsFrom(configurations.shadow.get())
 }
@@ -160,7 +167,14 @@ tasks.shadowJar {
     configurations = setOf(project.configurations.shadow.get())
     relocate("kotlin.metadata", "org.gradle.kotlin.dsl.internal.relocated.kotlin.metadata")
     relocate("kotlinx.metadata", "org.gradle.kotlin.dsl.internal.relocated.kotlinx.metadata")
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
     mergeServiceFiles()
+    filesMatching("META-INF/services/**") {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+
     exclude("META-INF/kotlin-metadata-jvm.kotlin_module")
     exclude("META-INF/kotlin-metadata.kotlin_module")
     exclude("META-INF/metadata.jvm.kotlin_module")

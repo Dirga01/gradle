@@ -28,6 +28,7 @@ import org.gradle.internal.os.OperatingSystem
 import org.gradle.test.fixtures.file.TestFile
 import org.gradle.test.precondition.Requires
 import org.gradle.test.preconditions.IntegTestPreconditions
+import org.gradle.test.preconditions.UnitTestPreconditions
 import org.gradle.util.internal.TextUtil
 import spock.lang.Issue
 
@@ -351,9 +352,10 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         assertToolchainUsages(events, jdkMetadata, "JavaLauncher")
     }
 
+    @Requires(IntegTestPreconditions.JavaHomeWithDifferentVersionAvailable)
     def "emits toolchain usages for test that configures executable path overriding toolchain java extension"() {
-        JvmInstallationMetadata jdkMetadata1 = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentVersion)
-        JvmInstallationMetadata jdkMetadata2 = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.getDifferentVersion(jdkMetadata1.languageVersion))
+        JvmInstallationMetadata jdkMetadata1 = AvailableJavaHomes.getJvmInstallationMetadata(Jvm.current())
+        JvmInstallationMetadata jdkMetadata2 = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentVersion)
 
         def minJdk = [jdkMetadata1, jdkMetadata2].min { it.languageVersion }
         def maxJdk = [jdkMetadata1, jdkMetadata2].max { it.languageVersion }
@@ -395,11 +397,12 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
     }
 
     @Issue("https://github.com/gradle/gradle/issues/21368")
-    @Requires(IntegTestPreconditions.NotEmbeddedExecutor)
+    @Requires([IntegTestPreconditions.NotEmbeddedExecutor, UnitTestPreconditions.KotlinSupportedJdk])
     def "emits toolchain usages when configuring toolchains for #kotlinPlugin Kotlin plugin '#kotlinPluginVersion'"() {
         // Kotlin doesn't support the latest JDK, see KotlinCompiler.toKotlinJvmTarget()
+        // This must be synced with the older version listed in this test, so we can't reuse KotlinSupportedJdk's value here.
         JvmInstallationMetadata jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.getDifferentVersion({
-            it.languageVersion.majorVersion.toInteger() <= 21
+            it.javaMajorVersion <= 24
         }))
 
         given:
@@ -457,7 +460,7 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
 
         where:
         kotlinPlugin | _
-        "2.0"        | _
+        "2.2"        | _
         "latest"     | _
 
         kotlinPluginVersion = kotlinPlugin == "latest" ? kgpLatestVersions.last() : latestStableKotlinPluginVersion(kotlinPlugin)
@@ -553,6 +556,83 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         output.contains(jdkMetadata.javaHome.toString())
     }
 
+    @Requires(UnitTestPreconditions.Unix)
+    def "emits toolchain usages for JavaExec task with configured executable that cannot be probed"() {
+        Jvm otherJvm = AvailableJavaHomes.differentVersion
+        JvmInstallationMetadata jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(otherJvm)
+
+        def javaWrapper = JavaExecToolchainFixture.writeJavaWrapperThatCannotBeProbed(testDirectory, otherJvm.javaExecutable)
+
+        buildFile << """
+            compileJava {
+                javaCompiler = javaToolchains.compilerFor {
+                    languageVersion = JavaLanguageVersion.of(${jdkMetadata.languageVersion.majorVersion})
+                }
+            }
+
+            task run(type: JavaExec) {
+                classpath = sourceSets.main.runtimeClasspath
+                mainClass = 'Foo'
+                executable = '${TextUtil.normaliseFileSeparators(javaWrapper.absolutePath)}'
+            }
+        """
+        file("src/main/java/Foo.java") << """
+            public class Foo {
+                public static void main(String[] args) {
+                    System.out.println("Bar!");
+                }
+            }
+        """
+
+        def task = ":run"
+
+        when:
+        withInstallations(jdkMetadata).run(task)
+        def events = toolchainEvents(task)
+        then:
+        executedAndNotSkipped(task)
+        assertToolchainUsages(events, UNKNOWN_TOOLCHAIN, "JavaLauncher")
+    }
+
+    def "emits toolchain usages for JavaExec task with configured executable from a valid toolchain"() {
+        Jvm otherJvm = AvailableJavaHomes.differentVersion
+        JvmInstallationMetadata jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(otherJvm)
+
+        buildFile << """
+            compileJava {
+                javaCompiler = javaToolchains.compilerFor {
+                    languageVersion = JavaLanguageVersion.of(${jdkMetadata.languageVersion.majorVersion})
+                }
+            }
+
+            def javaExecutable = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(${jdkMetadata.languageVersion.majorVersion})
+            }.get().executablePath
+
+            task run(type: JavaExec) {
+                classpath = sourceSets.main.runtimeClasspath
+                mainClass = 'Foo'
+                executable = javaExecutable
+            }
+        """
+        file("src/main/java/Foo.java") << """
+            public class Foo {
+                public static void main(String[] args) {
+                    System.out.println("Bar!");
+                }
+            }
+        """
+
+        def task = ":run"
+
+        when:
+        withInstallations(jdkMetadata).run(task)
+        def events = toolchainEvents(task)
+        then:
+        executedAndNotSkipped(task)
+        assertToolchainUsages(events, jdkMetadata, "JavaLauncher")
+    }
+
     private TestFile configureToolchainPerTask(JvmInstallationMetadata jdkMetadata) {
         buildFile << """
             compileJava {
@@ -593,4 +673,15 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         println(stable)
         return stable.last()
     }
+
+    private static final UNKNOWN_TOOLCHAIN = [
+        javaVersion: "unknown",
+        javaVendor: "unknown",
+        runtimeName: "unknown",
+        runtimeVersion: "unknown",
+        jvmName: "unknown",
+        jvmVersion: "unknown",
+        jvmVendor: "unknown",
+        architecture: "unknown",
+    ]
 }

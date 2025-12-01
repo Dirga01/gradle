@@ -16,23 +16,26 @@
 
 package org.gradle.api.internal.attributes;
 
+import org.gradle.api.Named;
 import org.gradle.api.attributes.Attribute;
 import org.gradle.api.attributes.AttributeContainer;
+import org.gradle.api.attributes.Usage;
+import org.gradle.api.internal.model.NamedObjectInstantiator;
+import org.gradle.api.internal.provider.DelegatingProviderWithValue;
 import org.gradle.api.internal.provider.MappingProvider;
 import org.gradle.api.internal.provider.PropertyFactory;
 import org.gradle.api.internal.provider.ProviderInternal;
 import org.gradle.api.provider.MapProperty;
 import org.gradle.api.provider.Provider;
 import org.gradle.internal.Cast;
+import org.gradle.internal.deprecation.DeprecationLogger;
 import org.gradle.internal.isolation.Isolatable;
 import org.jspecify.annotations.Nullable;
 
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.function.Function;
 
 public final class DefaultMutableAttributeContainer extends AbstractAttributeContainer {
@@ -40,9 +43,10 @@ public final class DefaultMutableAttributeContainer extends AbstractAttributeCon
     // Services
     private final AttributesFactory attributesFactory;
     private final AttributeValueIsolator attributeValueIsolator;
+    private final NamedObjectInstantiator namedObjectInstantiator;
 
     // Mutable State
-    private final MapProperty<Attribute<?>, Isolatable<?>> state;
+    private final MapProperty<Attribute<?>, AttributeEntry<?>> state;
 
     /**
      * Should only be true when realizing lazy attributes, to protect against reentrant
@@ -53,18 +57,18 @@ public final class DefaultMutableAttributeContainer extends AbstractAttributeCon
     public DefaultMutableAttributeContainer(
         AttributesFactory attributesFactory,
         AttributeValueIsolator attributeValueIsolator,
+        NamedObjectInstantiator namedObjectInstantiator,
         PropertyFactory propertyFactory
     ) {
         this.attributesFactory = attributesFactory;
         this.attributeValueIsolator = attributeValueIsolator;
-        this.state = Cast.uncheckedNonnullCast(propertyFactory.mapProperty(Attribute.class, Isolatable.class));
+        this.namedObjectInstantiator = namedObjectInstantiator;
+        this.state = Cast.uncheckedNonnullCast(propertyFactory.mapProperty(Attribute.class, AttributeEntry.class));
     }
 
     @Override
     public String toString() {
-        Map<Attribute<?>, Object> sorted = new TreeMap<>(Comparator.comparing(Attribute::getName));
-        sorted.putAll(getRealizedEntries());
-        return sorted.toString();
+        return asImmutable().toString();
     }
 
     @Override
@@ -79,7 +83,8 @@ public final class DefaultMutableAttributeContainer extends AbstractAttributeCon
         checkInsertionAllowed(key);
         assertAttributeValueIsNotNull(value);
         assertAttributeTypeIsValid(value.getClass(), key);
-        state.put(key, attributeValueIsolator.isolate(value));
+        maybeWarnOnLegacyUsageValue(key, value);
+        state.put(key, new AttributeEntry<>(key, attributeValueIsolator.isolate(value)));
         return this;
     }
 
@@ -88,20 +93,30 @@ public final class DefaultMutableAttributeContainer extends AbstractAttributeCon
         checkInsertionAllowed(key);
         assertAttributeValueIsNotNull(provider);
 
-        ProviderInternal<T> providerInternal = Cast.uncheckedCast(provider);
+        @SuppressWarnings("unchecked")
+        ProviderInternal<T> presentProvider = new DelegatingProviderWithValue<>(
+            (ProviderInternal<T>) provider,
+            "Providers passed to attributeProvider(Attribute, Provider) must always be present when queried."
+        );
 
-        Provider<Isolatable<T>> isolated;
-        Class<T> valueType = providerInternal.getType();
-        Class<Isolatable<T>> typedIsolatable = Cast.uncheckedCast(Isolatable.class);
+        Provider<AttributeEntry<T>> isolated;
+        Class<T> valueType = presentProvider.getType();
+        Class<AttributeEntry<T>> typedAttributeEntry = Cast.uncheckedCast(AttributeEntry.class);
         if (valueType != null) {
             // We can only sometimes check the type of the provider ahead of time.
             assertAttributeTypeIsValid(valueType, key);
-            isolated = new MappingProvider<>(typedIsolatable, providerInternal, attributeValueIsolator::isolate);
+            isolated = new MappingProvider<>(typedAttributeEntry, presentProvider, value -> {
+                maybeWarnOnLegacyUsageValue(key, value);
+                Isolatable<T> isolate = attributeValueIsolator.isolate(value);
+                return new AttributeEntry<>(key, isolate);
+            });
         } else {
             // Otherwise, check the type when the value is realized.
-            isolated = new MappingProvider<>(typedIsolatable, providerInternal, t -> {
-                assertAttributeTypeIsValid(t.getClass(), key);
-                return attributeValueIsolator.isolate(t);
+            isolated = new MappingProvider<>(typedAttributeEntry, presentProvider, value -> {
+                assertAttributeTypeIsValid(value.getClass(), key);
+                maybeWarnOnLegacyUsageValue(key, value);
+                Isolatable<T> isolate = attributeValueIsolator.isolate(value);
+                return new AttributeEntry<>(key, isolate);
             });
         }
 
@@ -110,16 +125,16 @@ public final class DefaultMutableAttributeContainer extends AbstractAttributeCon
         return this;
     }
 
+    @Override
+    public AttributeContainer addAllLater(AttributeContainer other) {
+        state.putAll(((AttributeContainerInternal) other).getEntriesProvider());
+        return this;
+    }
+
     private <T> void checkInsertionAllowed(Attribute<T> key) {
         if (realizingLazyState) {
             throw new IllegalStateException("Cannot add new attribute '" + key.getName() + "' while realizing all attributes of the container.");
         }
-    }
-
-    private Map<Attribute<?>, Isolatable<?>> getRealizedEntries() {
-        Map<Attribute<?>, Isolatable<?>> realizedState = doRealize(Provider::get);
-        assertNoDuplicateNames(realizedState.keySet());
-        return realizedState;
     }
 
     private static void assertNoDuplicateNames(Set<Attribute<?>> attributes) {
@@ -142,7 +157,7 @@ public final class DefaultMutableAttributeContainer extends AbstractAttributeCon
      * <p>
      * TODO: This sort of tracking should be handled by the provider API infrastructure
      */
-    private <T> T doRealize(Function<MapProperty<Attribute<?>, Isolatable<?>>, T> realizeAction) {
+    private <T> T doRealize(Function<MapProperty<Attribute<?>, AttributeEntry<?>>, T> realizeAction) {
         realizingLazyState = true;
         try {
             return realizeAction.apply(state);
@@ -169,18 +184,76 @@ public final class DefaultMutableAttributeContainer extends AbstractAttributeCon
         }
     }
 
+    private static <T> void maybeWarnOnLegacyUsageValue(Attribute<T> key, T value) {
+        if (key.equals(Usage.USAGE_ATTRIBUTE)) {
+            String name = ((Usage) value).getName();
+            String replacementUsage = UsageCompatibilityHandler.getReplacementUsage(name);
+            if (replacementUsage != null) {
+                warnOnLegacyUsageValue(name, replacementUsage);
+            }
+        } else if (key.getName().equals(Usage.USAGE_ATTRIBUTE.getName())) {
+            String name = value.toString();
+            String replacementUsage = UsageCompatibilityHandler.getReplacementUsage(name);
+            if (replacementUsage != null) {
+                warnOnLegacyUsageValue(name, replacementUsage);
+            }
+        }
+    }
+
+    private static void warnOnLegacyUsageValue(String legacyUsageValue, String replacementUsage) {
+        // In Gradle 10, we can remove deprecation entirely instead of making it an error.
+        DeprecationLogger.deprecateAction("Declaring a Usage attribute with a legacy value")
+            .withContext("A Usage attribute was declared with value '" + legacyUsageValue + "'.")
+            .withAdvice("Declare a Usage attribute with value '" + replacementUsage + "' and a LibraryElements attribute with value '" + UsageCompatibilityHandler.getLibraryElements(legacyUsageValue) + "' instead.")
+            .willBecomeAnErrorInGradle10()
+            .withUpgradeGuideSection(9, "deprecate_legacy_usage_values")
+            .nagUser();
+    }
+
     @Override
     @Nullable
     public <T> T getAttribute(Attribute<T> key) {
         if (!isValidAttributeRequest(key)) {
             return null;
         }
-        return Cast.uncheckedCast(state.getting(key).map(Isolatable::isolate).getOrNull());
+        return Cast.uncheckedCast(state.getting(key).map(entry -> entry.getValue().isolate()).getOrNull());
+    }
+
+    @Override
+    public Provider<Map<Attribute<?>, AttributeEntry<?>>> getEntriesProvider() {
+        return state;
     }
 
     @Override
     public ImmutableAttributes asImmutable() {
-        return attributesFactory.fromMap(getRealizedEntries());
+        Map<Attribute<?>, AttributeEntry<?>> realizedState = doRealize(Provider::get);
+        assertNoDuplicateNames(realizedState.keySet());
+
+        ImmutableAttributes result = ImmutableAttributes.EMPTY;
+        for (AttributeEntry<?> entry : realizedState.values()) {
+            result = concatEntry(result, entry);
+        }
+        return result;
+    }
+
+    /**
+     * Concatenates the given entry to the given attributes, taking care of legacy {@link Usage} values.
+     * <p>
+     * Starting in Gradle 10, we can replace this with a simple call to {@link AttributesFactory#concat(ImmutableAttributes, Attribute, Isolatable)}.
+     */
+    @SuppressWarnings("deprecation")
+    private <T> ImmutableAttributes concatEntry(ImmutableAttributes attributes, AttributeEntry<T> entry) {
+        Attribute<T> key = entry.getKey();
+        if (key.equals(Usage.USAGE_ATTRIBUTE) || key.getName().equals(Usage.USAGE_ATTRIBUTE.getName())) {
+            return attributesFactory.concatUsageAttribute(attributes, key, entry.getValue());
+        } else {
+            return attributesFactory.concat(attributes, key, entry.getValue());
+        }
+    }
+
+    @Override
+    public <T extends Named> T named(Class<T> type, String name) {
+        return namedObjectInstantiator.named(type, name);
     }
 
     @Override

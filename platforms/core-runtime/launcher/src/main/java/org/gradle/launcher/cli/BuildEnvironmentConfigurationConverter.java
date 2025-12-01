@@ -64,7 +64,7 @@ public class BuildEnvironmentConfigurationConverter {
         this.startParameterConverter = startParameterConverter;
         this.daemonParametersConverter = daemonParametersConverter;
         this.fileCollectionFactory = fileCollectionFactory;
-        this.toolchainConfigurationBuildOptionBackedConverter = new BuildOptionBackedConverter<>(new ToolchainBuildOptions());
+        this.toolchainConfigurationBuildOptionBackedConverter = new BuildOptionBackedConverter<>(ToolchainBuildOptions.forToolChainConfiguration());
     }
 
     public BuildEnvironmentConfigurationConverter(BuildLayoutFactory buildLayoutFactory, FileCollectionFactory fileCollectionFactory) {
@@ -78,21 +78,22 @@ public class BuildEnvironmentConfigurationConverter {
     }
 
     public Parameters convertParameters(ParsedCommandLine args, @Nullable File currentDir) throws CommandLineArgumentException {
+        Map<String, String> environmentVariables = new HashMap<>(System.getenv());
         InitialProperties initialProperties = initialPropertiesConverter.convert(args);
         BuildLayoutResult buildLayout = buildLayoutConverter.convert(initialProperties, args, currentDir);
         AllProperties properties = layoutToPropertiesConverter.convert(initialProperties, buildLayout);
         StartParameterInternal startParameter = new StartParameterInternal();
-        startParameterConverter.convert(args, buildLayout, properties, startParameter);
+        startParameterConverter.convert(args, buildLayout, properties, environmentVariables, startParameter);
 
-        DaemonParameters daemonParameters = new DaemonParameters(buildLayout.getGradleUserHomeDir(), fileCollectionFactory, properties.getRequestedSystemProperties());
-        daemonParametersConverter.convert(args, properties.getProperties(), daemonParameters);
+        DaemonParameters daemonParameters = new DaemonParameters(buildLayout.getGradleUserHomeDir(), fileCollectionFactory, properties.getRequestedSystemProperties(), environmentVariables);
+        daemonParametersConverter.convert(args, properties.getProperties(), environmentVariables, daemonParameters);
 
         // This is a workaround to maintain existing behavior that allowed
         // toolchain-specific properties to be specified with -P instead of -D
         Map<String, String> gradlePropertiesAsSeenByToolchains = new HashMap<>();
         gradlePropertiesAsSeenByToolchains.putAll(properties.getProperties());
-        gradlePropertiesAsSeenByToolchains.putAll(startParameter.getProjectProperties());
-        toolchainConfigurationBuildOptionBackedConverter.convert(args, gradlePropertiesAsSeenByToolchains, daemonParameters.getToolchainConfiguration());
+        gradlePropertiesAsSeenByToolchains.putAll(startParameter.getProjectPropertiesUntracked());
+        toolchainConfigurationBuildOptionBackedConverter.convert(args, gradlePropertiesAsSeenByToolchains, environmentVariables, daemonParameters.getToolchainConfiguration());
         daemonParameters.setRequestedJvmCriteriaFromMap(properties.getDaemonJvmProperties());
 
         return new Parameters(startParameter, daemonParameters, properties);

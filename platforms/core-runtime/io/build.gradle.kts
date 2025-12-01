@@ -21,10 +21,18 @@ plugins {
 
 description = "I/O utilities"
 
-gradlebuildJava.usedInWorkers()
+gradleModule {
+    targetRuntimes {
+        usedInWorkers = true
+    }
+}
 
 dependencies {
     api(libs.jspecify)
 
     implementation(projects.stdlibJavaExtensions)
+}
+
+errorprone {
+    nullawayEnabled = true
 }

@@ -24,7 +24,7 @@ import org.gradle.integtests.fixtures.executer.ExpectedDeprecationWarning
 import org.gradle.integtests.fixtures.executer.IntegrationTestBuildContext
 import org.gradle.integtests.fixtures.executer.OutputScrapingExecutionResult
 import org.gradle.integtests.fixtures.executer.ResultAssertion
-import org.gradle.internal.jvm.SupportedJavaVersionsDeprecations
+import org.gradle.internal.jvm.SupportedJavaVersionsExpectations
 import org.gradle.internal.operations.trace.BuildOperationTrace
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.BuildTask
@@ -91,8 +91,6 @@ class SmokeTestGradleRunner extends GradleRunner {
     }
 
     private void doEnableBuildOperationTracing(String buildOperationTracePath) {
-        // TODO: Should we filter using the stable/public build operation class names?
-        // This means we need to load classes and do an instanceof when we filter
         String buildOperationFilter = [
             "org.gradle.configurationcache.WorkGraphStoreDetails",
             "org.gradle.configurationcache.WorkGraphLoadDetails",
@@ -253,7 +251,7 @@ class SmokeTestGradleRunner extends GradleRunner {
         // TODO: Use problems API to verify deprecation warnings instead of parsing output.
         ExecutionResult execResult = OutputScrapingExecutionResult.from(result.output, "")
 
-        maybeExpectedDeprecationWarnings.add(SupportedJavaVersionsDeprecations.expectedDaemonDeprecationWarning)
+        maybeExpectedDeprecationWarnings.add(SupportedJavaVersionsExpectations.expectedDaemonDeprecationWarning)
 
         List<String> deprecationWarningsToCheck = []
         if (!ignoreDeprecationWarnings) {
@@ -261,7 +259,6 @@ class SmokeTestGradleRunner extends GradleRunner {
         }
 
         new ResultAssertion(
-            0,
             deprecationWarningsToCheck.collect { ExpectedDeprecationWarning.withMessage(it) },
             maybeExpectedDeprecationWarnings.collect { ExpectedDeprecationWarning.withMessage(it) },
             expectStackTraces,
@@ -410,6 +407,11 @@ class SmokeTestGradleRunner extends GradleRunner {
         }
 
         @Override
+        BufferedReader getOutputReader() {
+            return delegate.outputReader
+        }
+
+        @Override
         List<BuildTask> getTasks() {
             return delegate.tasks
         }
@@ -437,6 +439,11 @@ class SmokeTestGradleRunner extends GradleRunner {
         void assertConfigurationCacheStateLoaded() {
             assertBuildOperationTracePresent()
             new ConfigurationCacheBuildOperationsFixture(operations).assertStateLoaded()
+        }
+
+        void assertConfigurationCacheStateStoreDiscarded() {
+            assertBuildOperationTracePresent()
+            new ConfigurationCacheBuildOperationsFixture(operations).assertStateStoreDiscarded()
         }
 
         private void assertBuildOperationTracePresent() {

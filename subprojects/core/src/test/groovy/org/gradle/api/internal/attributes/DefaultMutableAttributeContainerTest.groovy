@@ -23,7 +23,6 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.internal.artifacts.JavaEcosystemSupport
 import org.gradle.api.internal.provider.DefaultProperty
 import org.gradle.api.internal.provider.DefaultProvider
-import org.gradle.api.internal.provider.DefaultProviderWithValue
 import org.gradle.api.internal.provider.PropertyHost
 import org.gradle.api.internal.provider.Providers
 import org.gradle.api.provider.Property
@@ -38,8 +37,8 @@ import org.gradle.util.TestUtil
 final class DefaultMutableAttributeContainerTest extends BaseAttributeContainerTest {
 
     @Override
-    protected DefaultMutableAttributeContainer createContainer(Map<Attribute<?>, ?> attributes = [:], Map<Attribute<?>, ?> moreAttributes = [:]) {
-        DefaultMutableAttributeContainer container = new DefaultMutableAttributeContainer(attributesFactory, AttributeTestUtil.attributeValueIsolator(), TestUtil.propertyFactory())
+    protected AttributeContainerInternal createContainer(Map<Attribute<?>, ?> attributes = [:], Map<Attribute<?>, ?> moreAttributes = [:]) {
+        AttributeContainerInternal container = AttributeTestUtil.attributesFactory().mutable()
         attributes.forEach {key, value ->
             container.attribute(key, value)
         }
@@ -360,8 +359,8 @@ final class DefaultMutableAttributeContainerTest extends BaseAttributeContainerT
         def container = createContainer()
 
         when:
-        container.attribute(Usage.USAGE_ATTRIBUTE, TestUtil.objectInstantiator().named(Usage, JavaEcosystemSupport.DEPRECATED_JAVA_API_JARS))
-        container.attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, TestUtil.objectInstantiator().named(LibraryElements, "aar"))
+        container.attribute(Usage.USAGE_ATTRIBUTE, container.named(Usage, JavaEcosystemSupport.DEPRECATED_JAVA_API_JARS))
+        container.attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, container.named(LibraryElements, "aar"))
 
         then:
         def immutable = container.asImmutable()
@@ -374,8 +373,8 @@ final class DefaultMutableAttributeContainerTest extends BaseAttributeContainerT
         def container = createContainer()
 
         when:
-        container.attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, TestUtil.objectInstantiator().named(LibraryElements, "aar"))
-        container.attribute(Usage.USAGE_ATTRIBUTE, TestUtil.objectInstantiator().named(Usage, JavaEcosystemSupport.DEPRECATED_JAVA_API_JARS))
+        container.attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, container.named(LibraryElements, "aar"))
+        container.attribute(Usage.USAGE_ATTRIBUTE, container.named(Usage, JavaEcosystemSupport.DEPRECATED_JAVA_API_JARS))
 
         then:
         def immutable = container.asImmutable()
@@ -413,12 +412,12 @@ final class DefaultMutableAttributeContainerTest extends BaseAttributeContainerT
         e.message == "Cannot have two attributes with the same name but different types. This container has an attribute named 'flavor' of type 'java.lang.Boolean' and another attribute of type 'java.lang.String'"
     }
 
-    def "calling keySet does not realize lazy attributes when they are guaranteed to have a value"() {
+    def "calling keySet does not realize lazy attributes"() {
         def container = createContainer()
         def testAttribute = Attribute.of("test", String)
-        container.attributeProvider(testAttribute, new DefaultProviderWithValue<>(String.class, () -> {
+        container.attributeProvider(testAttribute, TestUtil.providerFactory().provider {
             throw new RuntimeException("Foooooooo")
-        }))
+        })
 
         when:
         def keys = container.keySet()
@@ -433,5 +432,161 @@ final class DefaultMutableAttributeContainerTest extends BaseAttributeContainerT
         then:
         def e = thrown(RuntimeException)
         e.message == "Foooooooo"
+    }
+
+    def "passing an empty provider throws an exception when values are evaluated"() {
+        def container = createContainer()
+        def testAttribute = Attribute.of("test", String)
+        container.attributeProvider(testAttribute, Providers.notDefined())
+
+        when:
+        def keys = container.keySet()
+
+        then:
+        keys.size() == 1
+        keys.contains(testAttribute)
+
+        when:
+        container.getAttribute(testAttribute)
+
+        then:
+        def e = thrown(IllegalStateException)
+        e.message == "Providers passed to attributeProvider(Attribute, Provider) must always be present when queried."
+    }
+
+    def "can addAllLater from another container"() {
+        def container = createContainer()
+        def a = Attribute.of("a", String)
+        def b = Attribute.of("b", String)
+        def c = Attribute.of("c", String)
+        def d = Attribute.of("d", String)
+
+        container.attribute(a, "aa")
+        def bb = new DefaultProperty<String>(Mock(PropertyHost), String).convention("bb")
+        container.attributeProvider(b, bb)
+
+        def otherContainer = createContainer()
+        otherContainer.attribute(c, "cc")
+        def dd = new DefaultProperty<String>(Mock(PropertyHost), String).convention("dd")
+        otherContainer.attributeProvider(d, dd)
+
+        when:
+        container.addAllLater(otherContainer)
+
+        then:
+        container.getAttribute(a) == "aa"
+        container.getAttribute(b) == "bb"
+        container.getAttribute(c) == "cc"
+        container.getAttribute(d) == "dd"
+
+        when:
+        bb.convention("fooooo")
+
+        then:
+        container.getAttribute(b) == "fooooo"
+
+        when:
+        dd.convention("barrrrr")
+
+        then:
+        container.getAttribute(d) == "barrrrr"
+    }
+
+    def "addAllLater overwrites existing attributes"() {
+        def container = createContainer()
+        def a = Attribute.of("a", String)
+        def b = Attribute.of("b", String)
+
+        container.attribute(a, "aa")
+        def bb = new DefaultProperty<String>(Mock(PropertyHost), String).convention("bb")
+        container.attributeProvider(b, bb)
+
+        def otherContainer = createContainer()
+        otherContainer.attribute(a, "other-a")
+        def bb2 = new DefaultProperty<String>(Mock(PropertyHost), String).convention("other-b")
+        otherContainer.attributeProvider(b, bb2)
+
+        when:
+        container.addAllLater(otherContainer)
+
+        then:
+        container.getAttribute(a) == "other-a"
+        container.getAttribute(b) == "other-b"
+    }
+
+    def "can overwrite attributes from addAllLater"() {
+        def container = createContainer()
+        def a = Attribute.of("a", String)
+        def b = Attribute.of("b", String)
+
+        def otherContainer = createContainer()
+        otherContainer.attribute(a, "other-a")
+        def bb2 = new DefaultProperty<String>(Mock(PropertyHost), String).convention("other-b")
+        otherContainer.attributeProvider(b, bb2)
+        container.addAllLater(otherContainer)
+
+        when:
+        container.attribute(a, "first-a")
+        def bb = new DefaultProperty<String>(Mock(PropertyHost), String).convention("first-b")
+        container.attributeProvider(b, bb)
+
+        then:
+        container.getAttribute(a) == "first-a"
+        container.getAttribute(b) == "first-b"
+    }
+
+    def "can mutate added container after calling addAllLater"() {
+        def a = Attribute.of("a", String)
+        def b = Attribute.of("b", String)
+
+        def container = createContainer()
+        def otherContainer = createContainer()
+        container.addAllLater(otherContainer)
+
+        when:
+        otherContainer.attribute(a, "other-a")
+        def bb2 = new DefaultProperty<String>(Mock(PropertyHost), String).convention("other-b")
+        otherContainer.attributeProvider(b, bb2)
+
+        then:
+        container.getAttribute(a) == "other-a"
+        container.getAttribute(b) == "other-b"
+    }
+
+    def "translates deprecated usage values"() {
+        def container = createContainer()
+        container.attribute(Usage.USAGE_ATTRIBUTE, TestUtil.objectInstantiator().named(Usage, legacyUsage))
+
+        expect:
+        container.getAttribute(Usage.USAGE_ATTRIBUTE).name == legacyUsage
+        container.asImmutable().findEntry(Usage.USAGE_ATTRIBUTE).getIsolatedValue().name == replacedUsage
+        container.asImmutable().findEntry(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE).getIsolatedValue().name == replacedLibraryElements
+
+        where:
+        legacyUsage                                            | replacedUsage      | replacedLibraryElements
+        JavaEcosystemSupport.DEPRECATED_JAVA_API_JARS          | Usage.JAVA_API     | LibraryElements.JAR
+        JavaEcosystemSupport.DEPRECATED_JAVA_API_CLASSES       | Usage.JAVA_API     | LibraryElements.CLASSES
+        JavaEcosystemSupport.DEPRECATED_JAVA_RUNTIME_JARS      | Usage.JAVA_RUNTIME | LibraryElements.JAR
+        JavaEcosystemSupport.DEPRECATED_JAVA_RUNTIME_CLASSES   | Usage.JAVA_RUNTIME | LibraryElements.CLASSES
+        JavaEcosystemSupport.DEPRECATED_JAVA_RUNTIME_RESOURCES | Usage.JAVA_RUNTIME | LibraryElements.RESOURCES
+    }
+
+    def "translates deprecated string-typed usage values"() {
+        def container = createContainer()
+        def attr = Attribute.of(Usage.USAGE_ATTRIBUTE.name, String)
+        container.attribute(attr, legacyUsage)
+
+        expect:
+        container.getAttribute(attr) == legacyUsage
+        container.asImmutable().findEntry(Usage.USAGE_ATTRIBUTE.name).getIsolatedValue() == replacedUsage
+        container.asImmutable().findEntry(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE.name).getIsolatedValue() == replacedLibraryElements
+
+        where:
+        legacyUsage                                            | replacedUsage      | replacedLibraryElements
+        JavaEcosystemSupport.DEPRECATED_JAVA_API_JARS          | Usage.JAVA_API     | LibraryElements.JAR
+        JavaEcosystemSupport.DEPRECATED_JAVA_API_CLASSES       | Usage.JAVA_API     | LibraryElements.CLASSES
+        JavaEcosystemSupport.DEPRECATED_JAVA_RUNTIME_JARS      | Usage.JAVA_RUNTIME | LibraryElements.JAR
+        JavaEcosystemSupport.DEPRECATED_JAVA_RUNTIME_CLASSES   | Usage.JAVA_RUNTIME | LibraryElements.CLASSES
+        JavaEcosystemSupport.DEPRECATED_JAVA_RUNTIME_RESOURCES | Usage.JAVA_RUNTIME | LibraryElements.RESOURCES
     }
 }

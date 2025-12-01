@@ -1,4 +1,3 @@
-import gradlebuild.basics.isBundleGroovy4
 import gradlebuild.basics.tasks.PackageListGenerator
 
 plugins {
@@ -6,12 +5,6 @@ plugins {
 }
 
 description = "A library that aids in testing Gradle plugins and build logic in general"
-
-errorprone {
-    disabledChecks.addAll(
-        "CatchAndPrintStackTrace", // 1 occurrences
-    )
-}
 
 dependencies {
     api(projects.baseServices)
@@ -23,7 +16,7 @@ dependencies {
 
     implementation(projects.core)
     implementation(projects.fileTemp)
-    implementation(projects.io)
+    api(libs.guava)
     implementation(projects.logging)
     implementation(projects.wrapperShared)
     implementation(projects.buildProcessServices)
@@ -46,7 +39,7 @@ dependencies {
     integTestImplementation(projects.buildOption)
     integTestImplementation(projects.jvmServices)
     integTestImplementation(testFixtures(projects.buildConfiguration))
-    integTestImplementation(testFixtures(projects.buildProcessStartup))
+    integTestImplementation(testFixtures(projects.buildProcessServices))
     integTestImplementation(libs.slf4jApi)
     integTestImplementation(libs.jetbrainsAnnotations)
 
@@ -78,13 +71,6 @@ tasks.integMultiVersionTest {
     systemProperty("org.gradle.integtest.testkit.compatibility", "all")
 }
 
-tasks {
-    withType<Test>().configureEach {
-        if (project.isBundleGroovy4) {
-            exclude("org/gradle/testkit/runner/enduser/GradleRunnerSamplesEndUserIntegrationTest*") // cannot be parameterized for both Groovy 3 and 4
-        }
-    }
-}
 tasks.isolatedProjectsIntegTest {
     enabled = false
 }

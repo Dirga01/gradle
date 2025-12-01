@@ -21,7 +21,7 @@ import org.gradle.integtests.fixtures.resolve.ResolveTestFixture
 
 class MavenScopesIntegrationTest extends AbstractDependencyResolutionTest {
 
-    def resolve = new ResolveTestFixture(buildFile, "conf")
+    def resolve = new ResolveTestFixture(testDirectory)
 
     def setup() {
         settingsFile << """
@@ -38,9 +38,9 @@ class MavenScopesIntegrationTest extends AbstractDependencyResolutionTest {
             configurations {
                 conf
             }
-        """
 
-        resolve.prepare()
+            ${resolve.configureProject("conf")}
+        """
     }
 
     def "prefers the runtime variant of a Maven module"() {
@@ -75,10 +75,9 @@ class MavenScopesIntegrationTest extends AbstractDependencyResolutionTest {
         """
 
         when:
-        succeeds 'checkDep'
+        succeeds 'checkDeps'
 
         then:
-        resolve.expectDefaultConfiguration("runtime")
         resolve.expectGraph {
             root(':', ':testproject:') {
                 module('test:target:1.0') {
@@ -100,12 +99,14 @@ class MavenScopesIntegrationTest extends AbstractDependencyResolutionTest {
 
         buildFile << """
             dependencies {
-                conf group: 'test', name: 'target', version: '1.0', configuration: 'compile'
+                conf("test:target:1.0") {
+                    targetConfiguration = "compile"
+                }
             }
         """
 
         when:
-        fails('checkDep')
+        fails('checkDeps')
 
         then:
         failure.assertHasCause("Could not resolve test:target:1.0.\nRequired by:\n    root project 'testproject'")
@@ -120,12 +121,14 @@ class MavenScopesIntegrationTest extends AbstractDependencyResolutionTest {
 
         buildFile << """
             dependencies {
-                conf group: 'test', name: 'target', version: '1.0', configuration: 'x86_windows'
+                conf("test:target:1.0") {
+                    targetConfiguration = "x86_windows"
+                }
             }
         """
 
         when:
-        fails('checkDep')
+        fails('checkDeps')
 
         then:
         failure.assertHasCause("Could not resolve test:target:1.0.\nRequired by:\n    root project 'testproject'")

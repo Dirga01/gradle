@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -48,12 +48,13 @@ jobs:
           title: "Update jdks.yaml"
           body: "This PR updates JDK to the latest versions available in `.teamcity/jdks.yaml`."
           delete-branch: true
+          branch: "devprod/update-jdks"
           branch-suffix: timestamp
           labels: |
             in:building-gradle
             @dev-productivity
       - name: Trigger a build
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@v5
         if: ${{ steps.create-pull-request.outputs.pull-request-number }}
         with:
           issue-number: ${{ steps.create-pull-request.outputs.pull-request-number }}

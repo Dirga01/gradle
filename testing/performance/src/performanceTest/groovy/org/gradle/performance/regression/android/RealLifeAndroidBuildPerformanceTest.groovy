@@ -28,6 +28,7 @@ import org.gradle.profiler.BuildMutator
 import org.gradle.profiler.InvocationSettings
 import org.gradle.profiler.ScenarioContext
 import org.gradle.profiler.mutations.AbstractFileChangeMutator
+import org.gradle.util.internal.VersionNumber
 import spock.lang.Issue
 
 import java.util.regex.Matcher
@@ -51,7 +52,7 @@ class RealLifeAndroidBuildPerformanceTest extends AbstractCrossVersionPerformanc
 
     @RunFor([
         @Scenario(type = PER_COMMIT, operatingSystems = LINUX, testProjects = "largeAndroidBuild", iterationMatcher = "run help"),
-        @Scenario(type = PER_COMMIT, operatingSystems = LINUX, testProjects = ["largeAndroidBuild", "santaTrackerAndroidBuild", "nowInAndroidBuild"], iterationMatcher = "run assembleDebug"),
+        @Scenario(type = PER_COMMIT, operatingSystems = LINUX, testProjects = ["largeAndroidBuild", "nowInAndroidBuild"], iterationMatcher = "run assembleDebug"),
         @Scenario(type = PER_COMMIT, operatingSystems = LINUX, testProjects = "largeAndroidBuild", iterationMatcher = ".*phthalic.*"),
         // @Scenario(type = PER_COMMIT, operatingSystems = LINUX, testProjects = "largeAndroidBuild2", iterationMatcher = ".*module21.*"),
     ])
@@ -81,7 +82,7 @@ class RealLifeAndroidBuildPerformanceTest extends AbstractCrossVersionPerformanc
     }
 
     @RunFor([
-        @Scenario(type = PER_DAY, operatingSystems = LINUX, testProjects = ["largeAndroidBuild", "santaTrackerAndroidBuild", "nowInAndroidBuild"], iterationMatcher = "clean assemble.*"),
+        @Scenario(type = PER_DAY, operatingSystems = LINUX, testProjects = ["largeAndroidBuild", "nowInAndroidBuild"], iterationMatcher = "clean assemble.*"),
         @Scenario(type = PER_DAY, operatingSystems = LINUX, testProjects = "largeAndroidBuild", iterationMatcher = "clean phthalic.*")
     ])
     def "clean #tasks with clean transforms cache"() {
@@ -140,8 +141,6 @@ class RealLifeAndroidBuildPerformanceTest extends AbstractCrossVersionPerformanc
     private void configureBuildForProject(AndroidTestProject testProject) {
         if (IncrementalAndroidTestProject.NOW_IN_ANDROID == testProject) {
             configureRunnerSpecificallyForNowInAndroid()
-        } else if (IncrementalAndroidTestProject.SANTA_TRACKER == testProject) {
-            configureRunnerSpecificallyForSantaTracker()
         }
     }
 
@@ -158,12 +157,12 @@ class RealLifeAndroidBuildPerformanceTest extends AbstractCrossVersionPerformanc
             "--add-opens",
             "java.base/java.net=ALL-UNNAMED"
         ]) // needed when tests are being run with CC on, see https://github.com/gradle/gradle/issues/22765
+        if (VersionNumber.parse(kgpVersion) > VersionNumber.parse("2.1.20")) {
+            // NowInAndroid supports Kotlin 2.1.20 max
+            kgpVersion = "2.1.20"
+        }
         runner.addBuildMutator { is -> new SupplementaryRepositoriesMutator(is) }
         runner.addBuildMutator { is -> new AgpAndKgpVersionMutator(is, agpVersion, kgpVersion) }
-    }
-
-    private void configureRunnerSpecificallyForSantaTracker() {
-        runner.args.add("-DkotlinVersion=$kgpVersion")
     }
 
     private class TestFinalizerMutator implements BuildMutator {

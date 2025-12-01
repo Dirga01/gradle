@@ -18,10 +18,14 @@ package org.gradle.jvm.toolchain
 
 import org.gradle.api.JavaVersion
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+import org.gradle.integtests.fixtures.AvailableJavaHomes
 import org.gradle.integtests.fixtures.executer.DocumentationUtils
 import org.gradle.integtests.fixtures.executer.ExecutionResult
 import org.gradle.internal.jvm.Jvm
 import org.gradle.internal.os.OperatingSystem
+import org.gradle.test.precondition.Requires
+import org.gradle.test.preconditions.IntegTestPreconditions
+import org.gradle.util.internal.ToBeImplemented
 import org.junit.Assume
 import spock.lang.Issue
 
@@ -68,8 +72,8 @@ class JavaToolchainDownloadSpiIntegrationTest extends AbstractIntegrationSpec {
                .assertHasCause("Failed to calculate the value of task ':compileJava' property 'javaCompiler'.")
                .assertHasCause("Cannot find a Java installation on your machine (${OperatingSystem.current()}) matching: {languageVersion=99, vendor=vendor matching('exotic'), implementation=vendor-specific, nativeImageCapable=false}. " +
                    "Some toolchain resolvers had provisioning failures: custom (Unable to download toolchain matching the requirements " +
-                   "({languageVersion=99, vendor=vendor matching('exotic'), implementation=vendor-specific, nativeImageCapable=false}) from 'https://exoticJavaToolchain.com/java-99', " +
-                   "due to: Could not HEAD 'https://exoticJavaToolchain.com/java-99'.).")
+                   "({languageVersion=99, vendor=vendor matching('exotic'), implementation=vendor-specific, nativeImageCapable=false}) from 'https://exoticJavaToolchain.invalid/java-99', " +
+                   "due to: Could not HEAD 'https://exoticJavaToolchain.invalid/java-99'.).")
     }
 
     def "downloaded JDK is checked against the spec"() {
@@ -202,8 +206,8 @@ class JavaToolchainDownloadSpiIntegrationTest extends AbstractIntegrationSpec {
                .assertHasCause("Failed to calculate the value of task ':compileJava' property 'javaCompiler'.")
                .assertHasCause("Cannot find a Java installation on your machine (${OperatingSystem.current()}) matching: {languageVersion=99, vendor=vendor matching('exotic'), implementation=vendor-specific, nativeImageCapable=false}. " +
                    "Some toolchain resolvers had provisioning failures: custom (Unable to download toolchain matching the requirements " +
-                   "({languageVersion=99, vendor=vendor matching('exotic'), implementation=vendor-specific, nativeImageCapable=false}) from 'https://exoticJavaToolchain.com/java-99', " +
-                   "due to: Could not HEAD 'https://exoticJavaToolchain.com/java-99'.).")
+                   "({languageVersion=99, vendor=vendor matching('exotic'), implementation=vendor-specific, nativeImageCapable=false}) from 'https://exoticJavaToolchain.invalid/java-99', " +
+                   "due to: Could not HEAD 'https://exoticJavaToolchain.invalid/java-99'.).")
     }
 
     def "fails on registration collision"() {
@@ -490,6 +494,7 @@ class JavaToolchainDownloadSpiIntegrationTest extends AbstractIntegrationSpec {
                    GET_HELP)
     }
 
+    @Requires(IntegTestPreconditions.Java11HomeAvailable)
     def "logs informative warning message if some repositories fail to resolve the toolchain spec #logLevel"(String logLevel, Closure<ExecutionResult> test) {
         given:
         Assume.assumeFalse(JavaVersion.current() == JavaVersion.VERSION_11)
@@ -552,12 +557,57 @@ class JavaToolchainDownloadSpiIntegrationTest extends AbstractIntegrationSpec {
         where:
         logLevel | test
         "warn"   | { ExecutionResult r -> r.assertOutputContains("Some toolchain resolvers had internal failures: failsOnResolve (Ooops!). " +
-            "Some toolchain resolvers had provisioning failures: failsOnProvision (Unable to download toolchain matching the requirements ({languageVersion=11, vendor=any vendor, implementation=vendor-specific, nativeImageCapable=false}) from 'http://exoticJavaToolchain.com/java-11', due to: Attempting to download java toolchain from an insecure URI http://exoticJavaToolchain.com/java-11. This is not supported, use a secure URI instead.). Switch logging level to DEBUG (--debug) for further information.")
+            "Some toolchain resolvers had provisioning failures: failsOnProvision (Unable to download toolchain matching the requirements ({languageVersion=11, vendor=any vendor, implementation=vendor-specific, nativeImageCapable=false}) from 'http://exoticJavaToolchain.invalid/java-11', due to: Attempting to download java toolchain from an insecure URI http://exoticJavaToolchain.invalid/java-11. This is not supported, use a secure URI instead.). Switch logging level to DEBUG (--debug) for further information.")
         }
-        "debug"  | { ExecutionResult r -> r.assertOutputContains("Some toolchain resolvers had internal failures: failsOnResolve (Ooops!). Some toolchain resolvers had provisioning failures: failsOnProvision (Unable to download toolchain matching the requirements ({languageVersion=11, vendor=any vendor, implementation=vendor-specific, nativeImageCapable=false}) from 'http://exoticJavaToolchain.com/java-11', due to: Attempting to download java toolchain from an insecure URI http://exoticJavaToolchain.com/java-11. This is not supported, use a secure URI instead.)")
+        "debug"  | { ExecutionResult r -> r.assertOutputContains("Some toolchain resolvers had internal failures: failsOnResolve (Ooops!). Some toolchain resolvers had provisioning failures: failsOnProvision (Unable to download toolchain matching the requirements ({languageVersion=11, vendor=any vendor, implementation=vendor-specific, nativeImageCapable=false}) from 'http://exoticJavaToolchain.invalid/java-11', due to: Attempting to download java toolchain from an insecure URI http://exoticJavaToolchain.invalid/java-11. This is not supported, use a secure URI instead.)")
             .assertOutputContains("Suppressed: java.lang.Exception: Ooops!")
-            .assertOutputContains("Suppressed: org.gradle.jvm.toolchain.internal.install.exceptions.ToolchainDownloadException: Unable to download toolchain matching the requirements ({languageVersion=11, vendor=any vendor, implementation=vendor-specific, nativeImageCapable=false}) from 'http://exoticJavaToolchain.com/java-11', due to: Attempting to download java toolchain from an insecure URI http://exoticJavaToolchain.com/java-11. This is not supported, use a secure URI instead.")
+            .assertOutputContains("Suppressed: org.gradle.jvm.toolchain.internal.install.exceptions.ToolchainDownloadException: Unable to download toolchain matching the requirements ({languageVersion=11, vendor=any vendor, implementation=vendor-specific, nativeImageCapable=false}) from 'http://exoticJavaToolchain.invalid/java-11', due to: Attempting to download java toolchain from an insecure URI http://exoticJavaToolchain.invalid/java-11. This is not supported, use a secure URI instead.")
         }
+    }
+
+    // Currently the download and locking code exceeds the limit, so we need to shrink the filename more
+    // in JavaToolchainProvisioningService. This wasn't done in the interest of time.
+    @ToBeImplemented("Gradle should handle long filenames when downloading toolchains on all platforms")
+    def "downloaded archive filename is truncated to meet generic file-system limits"() {
+        def jvm = AvailableJavaHomes.getDifferentVersion()
+        given:
+        def jdkRepository = new JdkRepository(jvm, "jdk-" + ("A" * 300) + ".zip")
+        def uri = jdkRepository.start()
+        jdkRepository.expectHead()
+
+        executer
+            .requireOwnGradleUserHomeDir("needs to not have cached toolchains")
+            .withToolchainDownloadEnabled()
+
+        settingsFile << """
+            ${applyToolchainResolverPlugin("CustomToolchainResolver", singleUrlResolverCode(uri))}
+        """
+
+        buildFile << """
+            apply plugin: "java"
+
+            java {
+                toolchain {
+                    languageVersion = JavaLanguageVersion.of(${jvm.javaVersionMajor})
+                }
+            }
+        """
+
+        file("src/main/java/Foo.java") << "public class Foo {}"
+
+        when:
+        fails("compileJava")
+
+        then:
+        failureCauseContains("Cannot find a Java installation on your machine")
+        if (OperatingSystem.current().isWindows()) {
+            failureCauseContains("java.io.IOException: The filename, directory name, or volume label syntax is incorrect")
+        } else {
+            failureCauseContains("java.io.IOException: File name too long")
+        }
+
+        cleanup:
+        jdkRepository.stop()
     }
 
     private static String failsToResolveResolverCode() {
@@ -575,7 +625,7 @@ class JavaToolchainDownloadSpiIntegrationTest extends AbstractIntegrationSpec {
         """
             @Override
             public Optional<JavaToolchainDownload> resolve(JavaToolchainRequest request) {
-                URI uri = URI.create("http://exoticJavaToolchain.com/java-" + request.getJavaToolchainSpec().getLanguageVersion().get());
+                URI uri = URI.create("http://exoticJavaToolchain.invalid/java-" + request.getJavaToolchainSpec().getLanguageVersion().get());
                 return Optional.of(JavaToolchainDownload.fromUri(uri));
             }
         """
@@ -585,7 +635,7 @@ class JavaToolchainDownloadSpiIntegrationTest extends AbstractIntegrationSpec {
         """
             @Override
             public Optional<JavaToolchainDownload> resolve(JavaToolchainRequest request) {
-                URI uri = URI.create("https://exoticJavaToolchain.com/java-" + request.getJavaToolchainSpec().getLanguageVersion().get());
+                URI uri = URI.create("https://exoticJavaToolchain.invalid/java-" + request.getJavaToolchainSpec().getLanguageVersion().get());
                 return Optional.of(JavaToolchainDownload.fromUri(uri));
             }
         """

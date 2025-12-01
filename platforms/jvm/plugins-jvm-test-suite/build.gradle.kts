@@ -20,12 +20,6 @@ plugins {
 
 description = "Contains the JVM Test Suite plugin"
 
-errorprone {
-    disabledChecks.addAll(
-        "OverridesJavaxInjectableMethod", // 1 occurrences
-    )
-}
-
 dependencies {
     api(projects.serviceLookup)
     api(projects.stdlibJavaExtensions)
@@ -38,12 +32,14 @@ dependencies {
     api(projects.testSuitesBase)
 
     api(libs.inject)
-    
+
     implementation(projects.pluginsJavaBase)
     implementation(projects.testingBase)
+    implementation(projects.reporting)
 
     implementation(libs.guava)
-    implementation(libs.jspecify)
+
+    compileOnly(libs.jspecify)
 
     integTestDistributionRuntimeOnly(projects.distributionsJvm)
 }

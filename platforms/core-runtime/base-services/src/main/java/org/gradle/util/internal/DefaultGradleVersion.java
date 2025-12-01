@@ -35,7 +35,7 @@ import static java.lang.String.format;
 import static org.gradle.internal.IoActions.uncheckedClose;
 
 public final class DefaultGradleVersion extends GradleVersion {
-    private static final Pattern VERSION_PATTERN = Pattern.compile("((\\d+)(\\.\\d+)+)(-(\\p{Alpha}+)-(\\w+))?(-(SNAPSHOT|\\d{14}([-+]\\d{4})?))?");
+    public static final Pattern VERSION_PATTERN = Pattern.compile("((\\d+)(\\.\\d+)+)(-(\\p{Alpha}+)-(\\w+))?(-(SNAPSHOT|\\d{14}([-+]\\d{4})?))?");
     private static final int STAGE_MILESTONE = 0;
     private static final int STAGE_UNKNOWN = 1;
     private static final int STAGE_PREVIEW = 2;
@@ -110,7 +110,7 @@ public final class DefaultGradleVersion extends GradleVersion {
         this.buildTime = buildTime;
         Matcher matcher = VERSION_PATTERN.matcher(version);
         if (!matcher.matches()) {
-            throw new IllegalArgumentException(format("'%s' is not a valid Gradle version string (examples: '1.0', '1.0-rc-1')", version));
+            throw new IllegalArgumentException(format("'%s' is not a valid Gradle version string (examples: '9.0.0', '9.1.0-rc-1')", version));
         }
 
         versionPart = matcher.group(1);
@@ -203,14 +203,23 @@ public final class DefaultGradleVersion extends GradleVersion {
 
     @Override
     public GradleVersion getBaseVersion() {
-        if (stage == null && snapshot == null) {
+        if (isFinal()) {
             return this;
         }
         return version(versionPart);
     }
 
+    @Override
+    public boolean isFinal() {
+        return stage == null && snapshot == null;
+    }
+
     public DefaultGradleVersion getNextMajorVersion() {
-        return version((majorPart + 1) + ".0");
+        if (majorPart >= 8) {
+            return version((majorPart + 1) + ".0.0");
+        } else {
+            return version((majorPart + 1) + ".0");
+        }
     }
 
     @Override

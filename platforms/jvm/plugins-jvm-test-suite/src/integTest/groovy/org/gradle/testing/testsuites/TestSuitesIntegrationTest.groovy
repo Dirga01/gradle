@@ -306,8 +306,8 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
         'useJUnitJupiter()'          | JUnitPlatformTestFramework | "junit-jupiter-${JUnitJupiterTestToolchain.DEFAULT_VERSION}.jar"
         'useJUnitJupiter("5.7.1")'   | JUnitPlatformTestFramework | "junit-jupiter-5.7.1.jar"
         'useSpock()'                 | JUnitPlatformTestFramework | "spock-core-${SpockTestToolchain.DEFAULT_VERSION}.jar"
-        'useSpock("2.2-groovy-3.0")' | JUnitPlatformTestFramework | "spock-core-2.2-groovy-3.0.jar"
-        'useSpock("2.2-groovy-4.0")' | JUnitPlatformTestFramework | "spock-core-2.2-groovy-4.0.jar"
+        'useSpock("2.3-groovy-3.0")' | JUnitPlatformTestFramework | "spock-core-2.3-groovy-3.0.jar"
+        'useSpock("2.3-groovy-4.0")' | JUnitPlatformTestFramework | "spock-core-2.3-groovy-4.0.jar"
         'useKotlinTest()'            | JUnitPlatformTestFramework | "kotlin-test-junit5-${KotlinTestTestToolchain.DEFAULT_VERSION}.jar"
         'useKotlinTest("1.5.30")'    | JUnitPlatformTestFramework | "kotlin-test-junit5-1.5.30.jar"
         'useTestNG()'                | TestNGTestFramework        | "testng-${TestNGTestToolchain.DEFAULT_VERSION}.jar"
@@ -432,7 +432,7 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
         succeeds("integTest")
 
         and:
-        result.assertTaskExecuted(":integTest")
+        result.assertTaskScheduled(":integTest")
     }
 
     def "task configuration overrules test suite configuration with test suite set test framework"() {
@@ -482,7 +482,7 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
         succeeds("integTest")
 
         and:
-        result.assertTaskExecuted(":integTest")
+        result.assertTaskScheduled(":integTest")
     }
 
     @Issue("https://github.com/gradle/gradle/issues/18622")
@@ -876,10 +876,8 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
         where:
         format                              | platformType  | expression
         'single GAV string'                 | 'platform'            | "platform('org.example.gradle:platform')"
-        'module method'                     | 'platform'            | "platform(module('org.example.gradle', 'platform', null))"
         'referencing project.dependencies'  | 'platform'            | "project.dependencies.platform('org.example.gradle:platform')"
         'single GAV string'                 | 'enforcedPlatform'    | "enforcedPlatform('org.example.gradle:platform')"
-        'module method'                     | 'enforcedPlatform'    | "enforcedPlatform(module('org.example.gradle', 'platform', null))"
         'referencing project.dependencies'  | 'enforcedPlatform'    | "project.dependencies.enforcedPlatform('org.example.gradle:platform')"
     }
 
@@ -998,16 +996,17 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
 
             include("app")
         """
-        executer.noDeprecationChecks()
 
         expect: "should be able to reference the project without failing"
+        executer.expectDocumentedDeprecationWarning("Depending on the resolving project's module coordinates has been deprecated. This will fail with an error in Gradle 10. Use a project dependency instead. Consult the upgrading guide for further information: https://docs.gradle.org/current/userguide/upgrading_version_9.html#module_identity_for_root_component")
         succeeds ':app:assemble', ':app:integrationTest'
+
         def unitTestResults = new JUnitXmlTestExecutionResult(testDirectory, 'app/build/test-results/integrationTest')
         unitTestResults.assertTestClassesExecuted('org.example.app.ExampleTest')
     }
 
     @Issue("https://github.com/gradle/gradle/issues/25604")
-    def "test suite configurations can be copied"() {
+    def "test suite configurations can not be copied"() {
         buildFile << """
             plugins {
                 id 'java-library'
@@ -1028,7 +1027,6 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
             // alphabetical ordering seems to interfere here, if we used `s` instead of `t`, the check passes just fine
             def testImplHolder = configurations.create("uasdf")
             def testCopy = configurations.testImplementation.copy()
-            configurations.add(testCopy)
             testImplHolder.extendsFrom(testCopy)
 
             task assertCopyCanBeResolved {
@@ -1039,8 +1037,12 @@ class TestSuitesIntegrationTest extends AbstractIntegrationSpec {
             }
         """
         expect:
-        executer.noDeprecationChecks() // deprecated copy() on dependency scope
-        succeeds("assertCopyCanBeResolved")
+        fails("assertCopyCanBeResolved")
+        failureDescriptionContains("A problem occurred evaluating root project '${buildFile.parentFile.name}'.")
+        failureHasCause("""Method call not allowed
+  Calling configuration method 'copy()' is not allowed for configuration 'testImplementation', which has permitted usage(s):
+  \tDeclarable - this configuration can have dependencies added to it
+  This method is only meant to be called on configurations which allow the (non-deprecated) usage(s): 'Resolvable'.""")
     }
 
     def "configuring different test suites with different framework versions is allowed"() {

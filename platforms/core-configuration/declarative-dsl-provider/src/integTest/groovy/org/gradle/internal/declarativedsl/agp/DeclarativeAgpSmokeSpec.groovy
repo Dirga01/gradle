@@ -17,15 +17,19 @@
 package org.gradle.internal.declarativedsl.agp
 
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+import org.gradle.integtests.fixtures.ToBeFixedForConfigurationCache
 import org.gradle.integtests.fixtures.versions.AndroidGradlePluginVersions
 import org.gradle.internal.jvm.Jvm
 import org.gradle.test.fixtures.dsl.GradleDsl
 import org.junit.Assume
+import spock.lang.Ignore
 
+@Ignore("AGP does not yet support the binding API")
 class DeclarativeAgpSmokeSpec extends AbstractIntegrationSpec {
 
     private final AndroidGradlePluginVersions agpVersions = new AndroidGradlePluginVersions()
 
+    @ToBeFixedForConfigurationCache
     def 'a declarative project configures successfully with AGP'() {
         Assume.assumeTrue("Java version >= 11 required by AGP dependencies", Jvm.current().javaVersionMajor >= 11)
 

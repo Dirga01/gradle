@@ -23,7 +23,6 @@ import org.gradle.api.cache.Cleanup;
 import org.gradle.api.cache.MarkingStrategy;
 import org.gradle.api.internal.DocumentationRegistry;
 import org.gradle.api.internal.provider.DefaultProperty;
-import org.gradle.api.internal.provider.DefaultProvider;
 import org.gradle.api.internal.provider.PropertyHost;
 import org.gradle.api.invocation.Gradle;
 import org.gradle.api.model.ObjectFactory;
@@ -201,10 +200,6 @@ abstract public class DefaultCacheConfigurations implements CacheConfigurationsI
         this.cleanupHasBeenConfigured = hasBeenConfigured;
     }
 
-    private static <T> Provider<T> providerFromSupplier(Supplier<T> supplier) {
-        return new DefaultProvider<>(supplier::get);
-    }
-
     static abstract class DefaultCacheResourceConfiguration implements CacheResourceConfigurationInternal {
         private final String name;
         private final Clock clock;
@@ -241,7 +236,7 @@ abstract public class DefaultCacheConfigurations implements CacheConfigurationsI
         @Override
         public void setRemoveUnusedEntriesAfterDays(int removeUnusedEntriesAfterDays) {
             if (removeUnusedEntriesAfterDays < 1) {
-                throw new IllegalArgumentException(name + " cannot be set to retain entries for " + removeUnusedEntriesAfterDays + " days.  For time frames shorter than one day, use the 'removeUnusedEntriesOlderThan' property.");
+                throw new IllegalArgumentException("Cache '" + name + "' cannot be set to retain entries for " + removeUnusedEntriesAfterDays + " days. For time frames shorter than one day, use the 'removeUnusedEntriesOlderThan' property.");
             }
             long daysInMillis = TimeUnit.DAYS.toMillis(removeUnusedEntriesAfterDays);
             getEntryRetention().set(EntryRetention.relative(daysInMillis));

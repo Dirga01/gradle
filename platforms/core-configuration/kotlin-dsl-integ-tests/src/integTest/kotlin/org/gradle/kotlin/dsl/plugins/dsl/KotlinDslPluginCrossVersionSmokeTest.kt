@@ -17,15 +17,20 @@
 package org.gradle.kotlin.dsl.plugins.dsl
 
 import org.gradle.api.JavaVersion
+import org.gradle.internal.jvm.Jvm
 import org.gradle.kotlin.dsl.fixtures.AbstractKotlinIntegrationTest
 import org.gradle.kotlin.dsl.support.expectedKotlinDslPluginsVersion
+import org.gradle.kotlin.dsl.support.toKotlinJvmTarget
 import org.gradle.test.precondition.Requires
 import org.gradle.test.preconditions.IntegTestPreconditions.NotEmbeddedExecutor
 import org.hamcrest.CoreMatchers.containsString
 import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.Matchers.not
+import org.junit.Assume.assumeThat
+import org.junit.Assume.assumeTrue
+import org.junit.Before
 import org.junit.Test
 import java.io.File
-
 
 /**
  * Assert that the cross-version protocol between `:kotlin-dsl-plugins` and `:kotlin-dsl-provider-plugins` is not broken.
@@ -41,7 +46,23 @@ class KotlinDslPluginCrossVersionSmokeTest : AbstractKotlinIntegrationTest() {
 
     override val forceLocallyBuiltKotlinDslPlugins = false
 
-    private val oldestSupportedKotlinDslPluginVersion = "4.1.3"
+    private val oldestSupportedKotlinDslPluginVersion = "6.0.0"
+
+    @Before
+    fun setup() {
+        assumeThat(
+            "beta JDK is not usable with older Kotlin due to version parsing issues",
+            System.getProperty("java.runtime.version"),
+            not(containsString("beta"))
+        )
+
+        fun canBeHandledByKotlin(javaVersion: JavaVersion): Boolean {
+            val equivalentKotlinJvmTarget = javaVersion.toKotlinJvmTarget()
+            val javaVersionOfKotlinTarget = JavaVersion.forClassVersion(equivalentKotlinJvmTarget.majorVersion)
+            return javaVersionOfKotlinTarget >= javaVersion
+        }
+        assumeTrue("Kotlin can't yet handle Java version ${Jvm.current().javaVersion}", canBeHandledByKotlin(Jvm.current().javaVersion!!))
+    }
 
     @Test
     @Requires(NotEmbeddedExecutor::class)
@@ -62,15 +83,21 @@ class KotlinDslPluginCrossVersionSmokeTest : AbstractKotlinIntegrationTest() {
         withDefaultSettings()
         withBuildScript("""plugins { id("some") }""")
 
-        expectConventionDeprecations()
+        // Since we are testing an older KGP version
+        executer.noDeprecationChecks()
+
+        // See https://github.com/gradle/gradle-private/issues/4767
+        executer.requireIsolatedDaemons()
 
         build("help").apply {
 
             assertThat(
                 output,
-                containsString("This version of Gradle expects version '$expectedKotlinDslPluginsVersion' of the `kotlin-dsl` plugin " +
-                    "but version '$oldestSupportedKotlinDslPluginVersion' has been applied to project ':buildSrc'. " +
-                    "Let Gradle control the version of `kotlin-dsl` by removing any explicit `kotlin-dsl` version constraints from your build logic.")
+                containsString(
+                    "This version of Gradle expects version '$expectedKotlinDslPluginsVersion' of the `kotlin-dsl` plugin " +
+                        "but version '$oldestSupportedKotlinDslPluginVersion' has been applied to project ':buildSrc'. " +
+                        "Let Gradle control the version of `kotlin-dsl` by removing any explicit `kotlin-dsl` version constraints from your build logic."
+                )
             )
 
             assertThat(
@@ -83,8 +110,7 @@ class KotlinDslPluginCrossVersionSmokeTest : AbstractKotlinIntegrationTest() {
     @Test
     @Requires(NotEmbeddedExecutor::class, reason = "Kotlin version leaks on the classpath when running embedded")
     fun `can build plugin for previous unsupported Kotlin language version`() {
-
-        val previousKotlinLanguageVersion = "1.4"
+        val previousKotlinLanguageVersion = "1.6"
 
         withDefaultSettingsIn("producer")
         val buildScript = withBuildScriptIn(
@@ -111,10 +137,13 @@ class KotlinDslPluginCrossVersionSmokeTest : AbstractKotlinIntegrationTest() {
         withDefaultSettings().appendText("""includeBuild("producer")""")
         withBuildScript("""plugins { id("some") }""")
 
-        expectConventionDeprecations()
-        executer.expectDeprecationWarning("w: Language version 1.4 is deprecated and its support will be removed in a future version of Kotlin")
+        // Since we are testing an older KGP version
+        executer.noDeprecationChecks()
 
-        build("help").apply {
+        // See https://github.com/gradle/gradle-private/issues/4767
+        executer.requireIsolatedDaemons()
+
+        build("help", ).apply {
             assertThat(output, containsString("some!"))
         }
     }
@@ -135,15 +164,5 @@ class KotlinDslPluginCrossVersionSmokeTest : AbstractKotlinIntegrationTest() {
                 }"""
             )
         }
-    }
-
-    private
-    fun expectConventionDeprecations() {
-        executer.expectDocumentedDeprecationWarning(
-            "The org.gradle.api.plugins.Convention type has been deprecated. " +
-                "This is scheduled to be removed in Gradle 9.0. " +
-                "Consult the upgrading guide for further information: " +
-                "https://docs.gradle.org/current/userguide/upgrading_version_8.html#deprecated_access_to_conventions"
-        )
     }
 }

@@ -17,38 +17,46 @@
 package org.gradle.smoketests
 
 import groovy.transform.SelfType
-import org.gradle.internal.Pair
+import org.gradle.integtests.fixtures.versions.AndroidGradlePluginVersions
+import org.gradle.internal.os.OperatingSystem
 import org.gradle.util.GradleVersion
-
-import java.util.function.Consumer
+import org.gradle.util.internal.VersionNumber
 
 @SelfType(BaseDeprecations)
 trait WithAndroidDeprecations {
 
-    private static final List<Pair<String, String>> IS_PROPERTIES = [
-        Pair.of("com.android.build.gradle.internal.dsl.BuildType\$AgpDecorated.isCrunchPngs", "getCrunchPngs"),
-        Pair.of("com.android.build.gradle.internal.dsl.BuildType.isUseProguard", "getUseProguard"),
-        Pair.of("com.android.build.api.variant.impl.ApplicationVariantImpl.isWearAppUnbundled", "getWearAppUnbundled"),
-    ]
-
-    private void expectIsPropertyDeprecationWarningsUsing(Consumer<String> deprecationFunction) {
-        for (def prop : IS_PROPERTIES) {
-            def existing = prop.left
-            def replacement = prop.right
-
-            deprecationFunction.accept("Declaring an 'is-' property with a Boolean type has been deprecated. Starting with Gradle 9.0, this property will be ignored by Gradle. The combination of method name and return type is not consistent with Java Bean property rules and will become unsupported in future versions of Groovy. Add a method named '${replacement}' with the same behavior and mark the old one with @Deprecated, or change the type of '${existing}' (and the setter) to 'boolean'. Consult the upgrading guide for further information: https://docs.gradle.org/${GradleVersion.current().version}/userguide/upgrading_version_8.html#groovy_boolean_properties")
+    void expectMultiStringNotationDeprecationIf(String agpVersion, boolean condition) {
+        if (condition) {
+            expectMultiStringNotationDeprecation(agpVersion)
         }
     }
 
-    void expectIsPropertyDeprecationWarnings() {
-        expectIsPropertyDeprecationWarningsUsing { message ->
-            runner.expectDeprecationWarning(message, "https://issuetracker.google.com/issues/370546370")
+    void expectMultiStringNotationDeprecation(String agpVersion) {
+        if (VersionNumber.parse(agpVersion).baseVersion >= AndroidGradlePluginVersions.AGP_9_0) {
+            return
         }
-    }
+        String lintVersion = agpVersion.replaceAll("^8.", "31.")
+        String aapt2Version = AndroidGradlePluginVersions.aapt2Version(agpVersion)
+        String platform
+        if (OperatingSystem.current().isWindows()) {
+            platform = "windows"
+        } else if (OperatingSystem.current().isLinux()) {
+            platform = "linux"
+        } else if (OperatingSystem.current().isMacOsX()) {
+            platform = "osx"
+        } else {
+            throw new UnsupportedOperationException("Unsupported operating system: ${OperatingSystem.current().name}")
+        }
 
-    void maybeExpectIsPropertyDeprecationWarnings() {
-        expectIsPropertyDeprecationWarningsUsing { message ->
-            runner.maybeExpectLegacyDeprecationWarning(message)
+        if (lintVersion != null && aapt2Version != null) { // We don't test deprecations on older AGP versions.
+            // See https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:build-system/gradle-core/src/main/java/com/android/build/gradle/internal/lint/AndroidLintInputs.kt;l=2849?q=AndroidLintInputs
+            runner.expectLegacyDeprecationWarning(
+                "Declaring dependencies using multi-string notation has been deprecated. This will fail with an error in Gradle 10. Please use single-string notation instead: \"com.android.tools.lint:lint-gradle:$lintVersion\". Consult the upgrading guide for further information: https://docs.gradle.org/${GradleVersion.current().version}/userguide/upgrading_version_9.html#dependency_multi_string_notation"
+            )
+            // See https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:build-system/gradle-core/src/main/java/com/android/build/gradle/internal/res/Aapt2FromMaven.kt;l=138?q=Aapt2FromMaven
+            runner.expectLegacyDeprecationWarning(
+                "Declaring dependencies using multi-string notation has been deprecated. This will fail with an error in Gradle 10. Please use single-string notation instead: \"com.android.tools.build:aapt2:$aapt2Version:$platform\". Consult the upgrading guide for further information: https://docs.gradle.org/${GradleVersion.current().version}/userguide/upgrading_version_9.html#dependency_multi_string_notation"
+            )
         }
     }
 

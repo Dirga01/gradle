@@ -21,10 +21,10 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.file.FileCollection;
-import org.gradle.api.internal.artifacts.configurations.RoleBasedConfigurationContainerInternal;
 import org.gradle.api.internal.component.SoftwareComponentContainerInternal;
 import org.gradle.api.internal.plugins.DslObject;
 import org.gradle.api.internal.project.ProjectInternal;
@@ -47,7 +47,7 @@ import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.diagnostics.DependencyInsightReportTask;
 import org.gradle.api.tasks.testing.Test;
-import org.gradle.internal.execution.BuildOutputCleanupRegistry;
+import org.gradle.internal.deprecation.DeprecationLogger;
 import org.gradle.jvm.component.internal.DefaultJvmSoftwareComponent;
 import org.gradle.jvm.component.internal.JvmSoftwareComponentInternal;
 import org.gradle.testing.base.TestingExtension;
@@ -262,16 +262,17 @@ public abstract class JavaPlugin implements Plugin<Project> {
         configurePublishing(project.getPlugins(), project.getExtensions(), javaComponent.getMainFeature().getSourceSet());
 
         // Set the 'java' component as the project's default.
-        Configuration defaultConfiguration = project.getConfigurations().getByName(Dependency.DEFAULT_CONFIGURATION);
-        defaultConfiguration.extendsFrom(javaComponent.getMainFeature().getRuntimeElementsConfiguration());
+        project.getConfigurations().named(Dependency.DEFAULT_CONFIGURATION).configure(conf -> {
+            conf.extendsFrom(javaComponent.getMainFeature().getRuntimeElementsConfiguration().get());
+        });
         ((SoftwareComponentContainerInternal) project.getComponents()).getMainComponent().convention(javaComponent);
 
         // Build the main jar when running `assemble`.
-        project.getConfigurations().getByName(Dependency.ARCHIVES_CONFIGURATION).getArtifacts()
-            .add(javaComponent.getMainFeature().getRuntimeElementsConfiguration().getArtifacts().iterator().next());
-
-        BuildOutputCleanupRegistry buildOutputCleanupRegistry = projectInternal.getServices().get(BuildOutputCleanupRegistry.class);
-        configureSourceSets(buildOutputCleanupRegistry, sourceSets);
+        DeprecationLogger.whileDisabled(() -> {
+            project.getConfigurations().getByName(Dependency.ARCHIVES_CONFIGURATION).getArtifacts()
+                .addAllLater(javaComponent.getMainFeature().getRuntimeElementsConfiguration().map(conf -> conf.getArtifacts())
+            );
+        });
 
         configureTestTaskOrdering(project.getTasks());
         configureDiagnostics(project, javaComponent.getMainFeature());
@@ -286,7 +287,6 @@ public abstract class JavaPlugin implements Plugin<Project> {
             sourceSet,
             Collections.emptySet(),
             project,
-            false,
             false
         );
 
@@ -332,11 +332,6 @@ public abstract class JavaPlugin implements Plugin<Project> {
         });
     }
 
-    private static void configureSourceSets(final BuildOutputCleanupRegistry buildOutputCleanupRegistry, SourceSetContainer sourceSets) {
-        // Register the project's source set output directories
-        sourceSets.all(sourceSet -> buildOutputCleanupRegistry.registerOutputs(sourceSet.getOutput()));
-    }
-
     /**
      * Unless there are other concerns, we'd prefer to run jar tasks prior to test tasks, as this might offer a small performance improvement
      * for common usage.  In practice, running test tasks tends to take longer than building a jar; especially as a project matures. If tasks
@@ -352,7 +347,7 @@ public abstract class JavaPlugin implements Plugin<Project> {
 
     private static JvmTestSuite createDefaultTestSuite(
         JvmFeatureInternal mainFeature,
-        RoleBasedConfigurationContainerInternal configurations,
+        ConfigurationContainer configurations,
         TaskContainer tasks,
         ExtensionContainer extensions,
         ObjectFactory objectFactory

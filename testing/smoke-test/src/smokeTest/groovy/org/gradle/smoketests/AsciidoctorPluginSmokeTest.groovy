@@ -59,7 +59,7 @@ class AsciidoctorPluginSmokeTest extends AbstractPluginValidatingSmokeTest {
         def versions = Versions.of(TestedVersions.asciidoctor)
         [
             "org.asciidoctor.editorconfig": versions,
-            // "org.asciidoctor.js.convert" : versions, //  Broken after 9.0. See https://github.com/asciidoctor/asciidoctor-gradle-plugin/pull/749
+            "org.asciidoctor.js.convert": versions,
             "org.asciidoctor.jvm.convert": versions,
             "org.asciidoctor.jvm.epub": versions,
             // Plugin broken after JCenter dependency disappeared
@@ -86,7 +86,7 @@ class AsciidoctorPluginSmokeTest extends AbstractPluginValidatingSmokeTest {
                 // Once the plugin is fixed, we should include the fixed version in the smoke-tested set and flip the condition to be less-than (<)
                 versionNumber.major >= 4,
                 "The StartParameter.isConfigurationCacheRequested property has been deprecated. " +
-                    "This is scheduled to be removed in Gradle 10.0. " +
+                    "This is scheduled to be removed in Gradle 10. " +
                     "Please use 'configurationCache.requested' property on 'BuildFeatures' service instead. " +
                     "Consult the upgrading guide for further information: ${BASE_URL}/userguide/upgrading_version_8.html#deprecated_startparameter_is_configuration_cache_requested",
                 "https://github.com/asciidoctor/asciidoctor-gradle-plugin/issues/751"

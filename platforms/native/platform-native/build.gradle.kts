@@ -4,17 +4,6 @@ plugins {
 
 description = "Plugins, tasks and compiler infrastructure for compiling/linking code"
 
-errorprone {
-    disabledChecks.addAll(
-        "DefaultCharset", // 2 occurrences
-        "EqualsUnsafeCast", // 1 occurrences
-        "GetClassOnClass", // 1 occurrences
-        "ReferenceEquality", // 2 occurrences
-        "StaticAssignmentInConstructor", // 1 occurrences
-        "StringCharset", // 2 occurrences
-    )
-}
-
 dependencies {
     api(projects.serviceProvider)
     api(projects.baseDiagnostics)
@@ -65,11 +54,12 @@ dependencies {
     testFixturesImplementation(libs.commonsLang)
     testFixturesImplementation(libs.commonsIo)
 
-    testImplementation(testFixtures(projects.core))
-    testImplementation(testFixtures(projects.messaging))
-    testImplementation(testFixtures(projects.platformBase))
-    testImplementation(testFixtures(projects.modelCore))
     testImplementation(testFixtures(projects.baseServices))
+    testImplementation(testFixtures(projects.core))
+    testImplementation(testFixtures(projects.enterpriseLogging))
+    testImplementation(testFixtures(projects.messaging))
+    testImplementation(testFixtures(projects.modelCore))
+    testImplementation(testFixtures(projects.platformBase))
     testImplementation(testFixtures(projects.snapshots))
     testImplementation(testFixtures(projects.time))
 
@@ -88,7 +78,6 @@ packageCycles {
     excludePatterns.add("org/gradle/nativeplatform/toolchain/internal/**")
 }
 
-integTest.usesJavadocCodeSnippets = true
 tasks.isolatedProjectsIntegTest {
     enabled = false
 }

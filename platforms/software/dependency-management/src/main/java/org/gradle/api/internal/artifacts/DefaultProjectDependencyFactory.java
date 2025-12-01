@@ -16,12 +16,13 @@
 
 package org.gradle.api.internal.artifacts;
 
-import org.gradle.api.Project;
+import org.gradle.api.UnknownProjectException;
 import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.capabilities.Capability;
 import org.gradle.api.internal.artifacts.dependencies.DefaultProjectDependency;
 import org.gradle.api.internal.artifacts.dsl.CapabilityNotationParser;
 import org.gradle.api.internal.attributes.AttributesFactory;
+import org.gradle.api.internal.project.ProjectState;
 import org.gradle.api.internal.project.ProjectStateRegistry;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.internal.reflect.Instantiator;
@@ -52,15 +53,18 @@ public class DefaultProjectDependencyFactory {
         this.projectStateRegistry = projectStateRegistry;
     }
 
-    public ProjectDependency create(Project project) {
-        DefaultProjectDependency projectDependency = instantiator.newInstance(DefaultProjectDependency.class, project);
+    public ProjectDependency create(ProjectState projectState) {
+        DefaultProjectDependency projectDependency = instantiator.newInstance(DefaultProjectDependency.class, projectState);
         injectServices(projectDependency);
         return projectDependency;
     }
 
     public ProjectDependency create(Path projectIdentityPath) {
-        Project project = projectStateRegistry.stateFor(projectIdentityPath).getMutableModel();
-        return create(project);
+        ProjectState projectState = projectStateRegistry.findProjectState(projectIdentityPath);
+        if (projectState == null) {
+            throw new UnknownProjectException(String.format("Project with path '%s' could not be found.", projectIdentityPath.asString()));
+        }
+        return create(projectState);
     }
 
     private void injectServices(DefaultProjectDependency projectDependency) {

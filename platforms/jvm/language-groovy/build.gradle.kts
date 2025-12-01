@@ -30,11 +30,12 @@ dependencies {
 
     implementation(projects.classloaders)
     implementation(projects.concurrent)
-    implementation(projects.serviceLookup)
     implementation(projects.fileCollections)
     implementation(projects.fileTemp)
+    implementation(projects.groovyLoader)
     implementation(projects.logging)
     implementation(projects.loggingApi)
+    implementation(projects.serviceLookup)
 
     implementation(libs.groovy)
     implementation(libs.guava)
@@ -49,14 +50,15 @@ dependencies {
     testFixturesImplementation(projects.core)
     testFixturesImplementation(projects.baseServices)
     testFixturesImplementation(projects.internalIntegTesting)
+    testFixturesImplementation(testFixtures(projects.core))
     testFixturesImplementation(testFixtures(projects.modelReflect))
+    testFixturesImplementation(testFixtures(projects.testingBase))
+
     testFixturesImplementation(libs.guava)
 
     integTestImplementation(testFixtures(projects.modelReflect))
+    integTestImplementation(testFixtures(projects.testingBase))
     integTestImplementation(libs.commonsLang)
-    integTestImplementation(libs.javaParser) {
-        because("The Groovy docs inspects the dependencies at compile time")
-    }
     integTestImplementation(libs.nativePlatform) {
         because("Required for SystemInfo")
     }

@@ -100,7 +100,9 @@ task retrieve(type: Sync) {
                 ivy { url = "${ivyRepo.uri}" }
             }
             dependencies {
-                compile group: 'test', name: 'target', version: '1.0', configuration: 'x86_windows'
+                compile("test:target:1.0") {
+                    targetConfiguration = 'x86_windows'
+                }
             }
             task retrieve(type: Sync) {
               from configurations.compile
@@ -130,7 +132,9 @@ repositories {
     ivy { url = "${ivyRepo.uri}" }
 }
 dependencies {
-    compile group: 'test', name: 'target', version: '1.0', configuration: 'something'
+    compile("test:target:1.0") {
+        targetConfiguration = 'something'
+    }
 }
 task retrieve(type: Sync) {
   from configurations.compile
@@ -153,7 +157,9 @@ dependencies {
     repositories {
         ivy { url = "${ivyHttpRepo.uri}" }
     }
-    compile group: 'ivy.configuration', name: 'projectA', version: '1.2', configuration: 'a'
+    compile("ivy.configuration:projectA:1.2") {
+        targetConfiguration = "a"
+    }
 }
 task retrieve(type: Sync) {
   from configurations.compile
@@ -335,27 +341,37 @@ task retrieve(type: Sync) {
 
     def "removes redundant configurations from resolution result"() {
         given:
-        settingsFile << "rootProject.name = 'test'"
+        def resolve = new ResolveTestFixture(testDirectory)
+        settingsFile << """
+            rootProject.name = 'test'
+        """
 
-        def resolve = new ResolveTestFixture(buildFile, "compile")
         buildFile << """
-    group = 'org.test'
-    version = '1.0'
-    configurations {
-        compile
-    }
-    repositories {
-        ivy { url = "${ivyRepo.uri}" }
-    }
-    dependencies {
-        compile group: 'ivy.configuration', name: 'projectA', version: '1.2', configuration: 'a'
-    }
-    task retrieve(type: Sync) {
-      from configurations.compile
-      into 'libs'
-    }
-    """
-        resolve.prepare()
+            group = 'org.test'
+            version = '1.0'
+            configurations {
+                compile
+            }
+
+            ${resolve.configureProject("compile")}
+
+            repositories {
+                ivy {
+                    url = "${ivyRepo.uri}"
+                }
+            }
+
+            dependencies {
+                compile("ivy.configuration:projectA:1.2") {
+                    targetConfiguration = "a"
+                }
+            }
+
+            task retrieve(type: Sync) {
+                from configurations.compile
+                into 'libs'
+            }
+        """
 
         ivyRepo.module('ivy.configuration', 'projectA', '1.2')
             .configuration("a")

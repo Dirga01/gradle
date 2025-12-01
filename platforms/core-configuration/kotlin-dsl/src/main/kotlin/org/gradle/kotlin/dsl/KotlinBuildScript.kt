@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION")
+
 package org.gradle.kotlin.dsl
 
 import org.gradle.api.Project
@@ -39,8 +41,8 @@ import kotlin.script.templates.ScriptTemplateDefinition
 )
 @ScriptTemplateAdditionalCompilerArguments(
     [
-        "-language-version", "2.1",
-        "-api-version", "2.1",
+        "-language-version", "2.2",
+        "-api-version", "2.2",
         "-Xjvm-default=all",
         "-Xjsr305=strict",
         "-Xjspecify-annotations=strict",
@@ -51,10 +53,10 @@ import kotlin.script.templates.ScriptTemplateDefinition
 )
 @SamWithReceiverAnnotations("org.gradle.api.HasImplicitReceiver")
 @GradleDsl
-@Deprecated("Will be removed in Gradle 9.0")
+@Deprecated("Will be removed in Gradle 10")
 abstract class KotlinBuildScript(
     private val host: KotlinScriptHost<Project>
-) : @Suppress("DEPRECATION") org.gradle.kotlin.dsl.support.delegates.ProjectDelegate() {
+) : org.gradle.kotlin.dsl.support.delegates.ProjectDelegate() {
 
     override val delegate: Project
         get() = host.target

@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:Suppress("DEPRECATION")
+
 package org.gradle.kotlin.dsl
 
 import org.gradle.api.Action
@@ -38,8 +40,8 @@ import kotlin.script.templates.ScriptTemplateDefinition
 )
 @ScriptTemplateAdditionalCompilerArguments(
     [
-        "-language-version", "2.1",
-        "-api-version", "2.1",
+        "-language-version", "2.2",
+        "-api-version", "2.2",
         "-Xjvm-default=all",
         "-Xjsr305=strict",
         "-Xjspecify-annotations=strict",
@@ -50,10 +52,10 @@ import kotlin.script.templates.ScriptTemplateDefinition
 )
 @SamWithReceiverAnnotations("org.gradle.api.HasImplicitReceiver")
 @GradleDsl
-@Deprecated("Will be removed in Gradle 9.0")
+@Deprecated("Will be removed in Gradle 10")
 abstract class KotlinSettingsScript(
     private val host: KotlinScriptHost<Settings>
-) : @Suppress("deprecation") SettingsScriptApi(host.target) /* TODO:kotlin-dsl configure implicit receiver */ {
+) : SettingsScriptApi(host.target) /* TODO:kotlin-dsl configure implicit receiver */ {
 
     /**
      * The [ScriptHandler] for this script.
@@ -63,9 +65,6 @@ abstract class KotlinSettingsScript(
 
     override val fileOperations
         get() = host.fileOperations
-
-    override val processOperations
-        get() = host.processOperations
 
     override fun apply(action: Action<in ObjectConfigurationAction>) =
         host.applyObjectConfigurationAction(action)

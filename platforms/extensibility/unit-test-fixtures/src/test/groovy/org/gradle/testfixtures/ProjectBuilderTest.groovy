@@ -39,7 +39,7 @@ class ProjectBuilderTest extends Specification {
     @Rule
     public final TestNameTestDirectoryProvider temporaryFolder = new TestNameTestDirectoryProvider(getClass())
     @Rule
-    public final Resources resources = new Resources()
+    public final Resources resources = new Resources(null)
 
     def "can create a root project"() {
         when:
@@ -53,7 +53,6 @@ class ProjectBuilderTest extends Specification {
         project.buildFile == project.file("build.gradle")
         project.gradle != null
         project.gradle.rootProject == project
-        project.gradle.gradleHomeDir == project.file('gradleHome')
         project.gradle.gradleUserHomeDir == project.file('userHome')
     }
 
@@ -79,7 +78,6 @@ class ProjectBuilderTest extends Specification {
 
         then:
         project.projectDir == temporaryFolder.testDirectory
-        project.gradle.gradleHomeDir == project.file('gradleHome')
         project.gradle.gradleUserHomeDir == project.file('userHome')
     }
 
@@ -189,6 +187,51 @@ class ProjectBuilderTest extends Specification {
         cleanup:
         IncubationLogger.reset()
     }
+
+    @Issue("https://github.com/gradle/gradle/issues/32928")
+    def "settings directory matches root directory for root project with explicit dir"() {
+        given:
+        def projectDir = temporaryFolder.testDirectory
+
+        when:
+        def project = ProjectBuilder.builder()
+            .withProjectDir(projectDir)
+            .build()
+
+        then:
+        project.projectDir == projectDir
+        project.rootDir == projectDir
+        project.layout.settingsDirectory.asFile == projectDir
+    }
+
+    @Issue("https://github.com/gradle/gradle/issues/32928")
+    def "settings directory matches root directory for default temp project"() {
+        when:
+        def project = ProjectBuilder.builder().build()
+
+        then:
+        project.projectDir == project.rootDir
+        project.layout.settingsDirectory.asFile == project.rootDir
+    }
+
+    @Issue("https://github.com/gradle/gradle/issues/32928")
+    def "child project inherits settings directory from root"() {
+        given:
+        def rootDir = temporaryFolder.testDirectory
+        def root = ProjectBuilder.builder()
+            .withProjectDir(rootDir)
+            .build()
+
+        when:
+        def child = ProjectBuilder.builder()
+            .withName("child")
+            .withParent(root)
+            .build()
+
+        then:
+        root.layout.settingsDirectory.asFile == rootDir
+        child.layout.settingsDirectory.asFile == rootDir
+        child.projectDir == new File(rootDir, "child")
+        child.rootDir == rootDir
+    }
 }
-
-

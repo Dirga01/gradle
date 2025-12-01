@@ -18,7 +18,6 @@ dependencies {
     api(projects.coreApi)
     api(projects.fileOperations)
     api(projects.jvmServices)
-    api(projects.logging)
     api(projects.messaging)
     api(projects.modelCore)
     api(projects.reporting)
@@ -35,13 +34,15 @@ dependencies {
     api(libs.inject)
     api(libs.jspecify)
 
+    implementation(projects.logging)
     implementation(projects.classloaders)
     implementation(projects.concurrent)
-    implementation(projects.serviceLookup)
+    implementation(projects.fileCollections)
     implementation(projects.fileTemp)
     implementation(projects.functional)
     implementation(projects.loggingApi)
     implementation(projects.platformBase)
+    implementation(projects.serviceLookup)
     implementation(projects.testingJvmInfrastructure)
 
     implementation(libs.commonsIo)
@@ -57,14 +58,17 @@ dependencies {
     testImplementation(testFixtures(projects.modelReflect))
     testImplementation(testFixtures(projects.time))
 
-    integTestImplementation(testFixtures(projects.testingBase))
     integTestImplementation(testFixtures(projects.languageGroovy))
     integTestImplementation(testFixtures(projects.scala))
+    integTestImplementation(testFixtures(projects.testingBase))
+    integTestImplementation(testFixtures(projects.toolingApi))
 
     testRuntimeOnly(projects.distributionsCore) {
         because("Tests instantiate DefaultClassLoaderRegistry which requires a 'gradle-plugins.properties' through DefaultPluginModuleRegistry")
     }
     integTestDistributionRuntimeOnly(projects.distributionsJvm)
+
+    testFixturesImplementation(projects.internalIntegTesting)
 }
 
 strictCompile {
@@ -76,7 +80,6 @@ packageCycles {
     excludePatterns.add("org/gradle/api/internal/tasks/testing/**")
 }
 
-integTest.usesJavadocCodeSnippets = true
 tasks.isolatedProjectsIntegTest {
     enabled = false
 }

@@ -5,7 +5,7 @@ plugins {
 repositories {
     mavenCentral()
 }
-/*
+
 // tag::dependency-full[]
 dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.8.9")
@@ -20,7 +20,7 @@ dependencies {
     implementation("io.vertx:vertx-core:3.5.3")
 }
 // end::dependency-full-bom[]
-*/
+
 // tag::dependency-full-platform[]
 abstract class JacksonAlignmentRule : ComponentMetadataRule {
     override fun execute(ctx: ComponentMetadataContext) {
@@ -36,9 +36,6 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.8.9")
     implementation("io.vertx:vertx-core:3.5.3")
 
-    dependencies {
-        components.all<JacksonAlignmentRule>()
-    }
+    components.all<JacksonAlignmentRule>()
 }
 // end::dependency-full-platform[]
-

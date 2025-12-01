@@ -42,6 +42,7 @@ import org.gradle.internal.logging.services.LoggingServiceRegistry;
 import org.gradle.internal.logging.text.StyledTextOutputFactory;
 import org.gradle.internal.nativeintegration.services.NativeServices;
 import org.gradle.internal.os.OperatingSystem;
+import org.gradle.internal.problems.failure.DefaultFailureFactory;
 import org.gradle.internal.service.ServiceRegistry;
 import org.gradle.internal.service.ServiceRegistryBuilder;
 import org.gradle.internal.service.scopes.BasicGlobalScopeServices;
@@ -62,6 +63,7 @@ import org.jspecify.annotations.Nullable;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * <p>Responsible for converting a set of command-line arguments into a {@link Runnable} action.</p>
@@ -88,7 +90,12 @@ public class DefaultCommandLineActionFactory implements CommandLineActionFactory
             args,
             loggingConfiguration,
             new ParseAndBuildAction(loggingServices, args),
-            new BuildExceptionReporter(loggingServices.get(StyledTextOutputFactory.class), loggingConfiguration, clientMetaData()));
+            new BuildExceptionReporter(
+                loggingServices.get(StyledTextOutputFactory.class),
+                loggingConfiguration,
+                clientMetaData(),
+                DefaultFailureFactory.withDefaultClassifier()
+            ));
     }
 
     private static BuildClientMetaData clientMetaData() {
@@ -439,6 +446,7 @@ public class DefaultCommandLineActionFactory implements CommandLineActionFactory
             InitialPropertiesConverter propertiesConverter = new InitialPropertiesConverter();
             BuildLayoutConverter buildLayoutConverter = new BuildLayoutConverter();
             LayoutToPropertiesConverter layoutToPropertiesConverter = new LayoutToPropertiesConverter(new BuildLayoutFactory());
+            Map<String, String> environmentVariables = System.getenv();
 
             BuildLayoutResult buildLayout = buildLayoutConverter.defaultValues();
 
@@ -463,10 +471,10 @@ public class DefaultCommandLineActionFactory implements CommandLineActionFactory
                 AllProperties properties = layoutToPropertiesConverter.convert(initialProperties, buildLayout);
 
                 // Calculate the logging configuration
-                loggingBuildOptions.convert(parsedCommandLine, properties.getProperties(), loggingConfiguration);
+                loggingBuildOptions.convert(parsedCommandLine, properties.getProperties(), environmentVariables, loggingConfiguration);
 
                 // Get configuration for showing the welcome message
-                welcomeMessageConverter.convert(parsedCommandLine, properties.getProperties(), welcomeMessageConfiguration);
+                welcomeMessageConverter.convert(parsedCommandLine, properties.getProperties(), environmentVariables, welcomeMessageConfiguration);
             } catch (CommandLineArgumentException e) {
                 // Ignore, deal with this problem later
             }

@@ -18,11 +18,11 @@ import com.google.gson.Gson
 import com.google.gson.Strictness
 import com.google.gson.reflect.TypeToken
 import com.google.gson.stream.JsonReader
-import gradlebuild.basics.isBundleGroovy4
+import gradlebuild.basics.bundleGroovyMajor
 import gradlebuild.basics.repoRoot
 import gradlebuild.modules.extension.ExternalModulesExtension
 
-val libs = extensions.create<ExternalModulesExtension>("libs", isBundleGroovy4)
+val libs = extensions.create<ExternalModulesExtension>("libs", bundleGroovyMajor)
 
 applyAutomaticUpgradeOfCapabilities()
 dependencies {
@@ -61,10 +61,10 @@ dependencies {
         // asciidoctorj depends on a lot of stuff, which causes `Can't create process, argument list too long` on Windows
         applyRule<DependencyRemovalByNameRule>("org.gradle:sample-discovery", setOf("asciidoctorj", "asciidoctorj-api"))
 
-        withModule<DowngradeXmlApisRule>("jaxen:jaxen")
-        withModule<DowngradeXmlApisRule>("jdom:jdom")
-        withModule<DowngradeXmlApisRule>("xalan:xalan")
-        withModule<DowngradeXmlApisRule>("jaxen:jaxen")
+        withModule<RemoveXmlApisRule>("jaxen:jaxen")
+        withModule<RemoveXmlApisRule>("jdom:jdom")
+        withModule<RemoveXmlApisRule>("xalan:xalan")
+        withModule<RemoveXmlApisRule>("jaxen:jaxen")
 
         // We only need "failureaccess" of Guava's dependencies
         applyRule<KeepDependenciesByNameRule>("com.google.guava:guava", setOf("failureaccess"))
@@ -255,14 +255,14 @@ fun <reified T : ComponentMetadataRule> ComponentMetadataHandler.applyRule(modul
 }
 
 
-abstract class DowngradeXmlApisRule : ComponentMetadataRule {
+/**
+ * The JDK now provides these.
+ */
+abstract class RemoveXmlApisRule : ComponentMetadataRule {
     override fun execute(context: ComponentMetadataContext) {
         context.details.allVariants {
             withDependencies {
-                filter { it.group == "xml-apis" }.forEach {
-                    it.version { require("1.4.01") }
-                    it.because("Gradle has trouble with the versioning scheme and pom redirects in higher versions")
-                }
+                removeAll { it.group == "xml-apis" }
             }
         }
     }

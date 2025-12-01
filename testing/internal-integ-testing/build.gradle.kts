@@ -7,6 +7,15 @@ plugins {
 
 description = "Collection of test fixtures for integration tests, internal use only"
 
+jvmCompile {
+    compilations {
+        named("main") {
+            // These test fixtures are used by the tooling API tests, which still run on JVM 8
+            targetJvmVersion = 8
+        }
+    }
+}
+
 sourceSets {
     main {
         // Incremental Groovy joint-compilation doesn't work with the Error Prone annotation processor
@@ -24,7 +33,6 @@ dependencies {
     api(projects.concurrent)
     api(projects.core)
     api(projects.coreApi)
-    api(projects.dependencyManagement)
     api(projects.hashing)
     api(projects.internalTesting) {
         because("Part of the public API")
@@ -42,10 +50,6 @@ dependencies {
     api(projects.daemonProtocol)
     api(projects.serviceLookup)
 
-    api(testFixtures(projects.core)) {
-        because("HttpServer leaks PortAllocator to spock AST transformer")
-    }
-
     api(libs.gson)
     api(libs.groovy)
     api(libs.groovyXml)
@@ -61,6 +65,7 @@ dependencies {
     api(libs.jgit) {
         because("Some tests require a git reportitory - see AbstractIntegrationSpec.initGitDir(")
     }
+    api(libs.jspecify)
     api(libs.jsr305)
     api(libs.junit) {
         because("Part of the public API, used by spock AST transformer")
@@ -74,22 +79,23 @@ dependencies {
     api(libs.samplesDiscovery)
     api(libs.servletApi)
     api(libs.slf4jApi)
-    api(libs.socksProxy)
     api(libs.spock) {
         because("Part of the public API")
     }
 
     implementation(projects.baseServicesGroovy)
     implementation(projects.buildCache)
+    implementation(projects.buildDiscovery)
+    implementation(projects.buildDiscoveryImpl)
     implementation(projects.buildEvents)
     implementation(projects.buildOption)
     implementation(projects.buildProcessServices)
-    implementation(projects.buildProcessStartup)
     implementation(projects.buildState)
     implementation(projects.classloaders)
     implementation(projects.cli)
     implementation(projects.clientServices)
     implementation(projects.daemonServices)
+    implementation(projects.dependencyManagement)
     implementation(projects.enterpriseLogging)
     implementation(projects.enterpriseOperations)
     implementation(projects.fileCollections)
@@ -107,15 +113,17 @@ dependencies {
     implementation(projects.serviceProvider)
     implementation(projects.serviceRegistryBuilder)
     implementation(projects.time)
+    implementation(projects.toolingApi)
     implementation(projects.wrapperShared)
 
     implementation(testFixtures(projects.buildOperations))
-    implementation(testFixtures(projects.buildProcessStartup))
+    implementation(testFixtures(projects.buildProcessServices))
+    implementation(testFixtures(projects.core))
+    implementation(testFixtures(projects.enterpriseLogging))
 
     implementation(libs.ansiControlSequenceUtil)
     implementation(libs.commonsCompress)
     implementation(libs.commonsLang)
-    implementation(libs.commonsLang3)
     implementation(libs.commonsIo)
     implementation(libs.groovyJson)
     implementation(libs.httpcore)
@@ -134,6 +142,7 @@ dependencies {
     implementation(libs.nativePlatform)
     implementation(libs.netty)
     implementation(libs.opentest4j)
+    implementation(libs.socksProxy)
     // we depend on both: sshd platforms and libraries
     implementation(libs.sshdCore)
     implementation(platform(libs.sshdCore))
@@ -142,7 +151,7 @@ dependencies {
     implementation(libs.sshdSftp)
     implementation(platform(libs.sshdSftp))
 
-    compileOnly(projects.configurationCache) {
+    compileOnly(libs.kotlinStdlib) {
         because("""Fixes:
             compiler message file broken: key=compiler.misc.msg.bug arguments=11.0.21, {1}, {2}, {3}, {4}, {5}, {6}, {7}
             java.lang.AssertionError: typeSig ERROR""")
@@ -174,16 +183,17 @@ packageCycles {
 
 val prepareVersionsInfo = tasks.register<PrepareVersionsInfo>("prepareVersionsInfo") {
     destFile = layout.buildDirectory.file("generated-resources/all-released-versions/all-released-versions.properties")
-    versions = moduleIdentity.releasedVersions.map {
+    versions = gradleModule.identity.releasedVersions.map {
         it.allPreviousVersions.joinToString(" ") { it.version }
     }
-    mostRecent = moduleIdentity.releasedVersions.map { it.mostRecentRelease.version }
-    mostRecentSnapshot = moduleIdentity.releasedVersions.map { it.mostRecentSnapshot.version }
+    mostRecent = gradleModule.identity.releasedVersions.map { it.mostRecentRelease.version }
+    mostRecentSnapshot = gradleModule.identity.releasedVersions.map { it.mostRecentSnapshot.version }
 }
 
 val copyTestedVersionsInfo by tasks.registering(Copy::class) {
     from(isolated.rootProject.projectDirectory.file("gradle/dependency-management/agp-versions.properties"))
     from(isolated.rootProject.projectDirectory.file("gradle/dependency-management/kotlin-versions.properties"))
+    from(isolated.rootProject.projectDirectory.file("gradle/dependency-management/smoke-tested-plugins.properties"))
     into(layout.buildDirectory.dir("generated-resources/tested-versions"))
 }
 

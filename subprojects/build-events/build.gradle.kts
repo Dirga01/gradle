@@ -5,6 +5,7 @@ plugins {
 description = "Implementation of build event services and build event types (work item, tasks, tests, configuration, etc)"
 
 dependencies {
+    api(projects.baseServices)
     api(projects.buildOperations)
     api(projects.concurrent)
     api(projects.core)
@@ -16,6 +17,7 @@ dependencies {
     api(projects.stdlibJavaExtensions)
     api(projects.toolingApi)
 
+    implementation(projects.logging)
     implementation(projects.modelCore)
 
     api(libs.jspecify)
@@ -31,6 +33,7 @@ dependencies {
     }
     integTestImplementation(projects.buildOption)
     integTestImplementation(projects.enterpriseOperations)
+    integTestImplementation(testFixtures(projects.testingBase))
 
     integTestDistributionRuntimeOnly(projects.distributionsBasics)  {
         because("Requires ':toolingApiBuilders': Event handlers are in the wrong place, and should live in this project")
